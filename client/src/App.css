@@ -1,0 +1,201 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap');
+
+:root {
+  --bg-dark: #020617;
+  --bg-card: rgba(15, 23, 42, 0.8);
+  --primary: #6366f1;
+  --primary-glow: rgba(99, 102, 241, 0.4);
+  --accent: #10b981;
+  --danger: #f43f5e;
+  --text-main: #f8fafc;
+  --text-dim: #94a3b8;
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Outfit', sans-serif;
+  overflow: hidden;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.lobby-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #020617 100%);
+  position: relative;
+}
+
+.lobby-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+h1 {
+  font-size: 6rem;
+  font-weight: 900;
+  margin: 0;
+  background: linear-gradient(to bottom, #fff 30%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+  letter-spacing: -0.3rem;
+  line-height: 0.9;
+  z-index: 1;
+  filter: drop-shadow(0 0 30px rgba(99, 102, 241, 0.2));
+}
+
+.login-box {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  padding: 3rem;
+  border-radius: 2rem;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.8);
+  width: 100%;
+  max-width: 420px;
+  margin-top: 3rem;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+h2 {
+  margin: 0 0 2rem 0;
+  font-weight: 700;
+  color: var(--text-main);
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+input {
+  background: rgba(2, 6, 23, 0.6);
+  border: 1px solid var(--glass-border);
+  padding: 1.25rem;
+  border-radius: 1rem;
+  color: white;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+  margin-bottom: 0.5rem;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 20px 40px -10px var(--primary-glow);
+  filter: brightness(1.1);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 1.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.2rem;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.divider:not(:empty)::before { margin-right: 1.5rem; }
+.divider:not(:empty)::after { margin-left: 1.5rem; }
+
+.player-list-scroll {
+  max-height: 250px;
+  overflow-y: auto;
+  margin-bottom: 2rem;
+  padding-right: 0.5rem;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.25rem;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.player-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.player-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.start-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.waiting-msg {
+  text-align: center;
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 1rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.game-wrapper {
+  width: 100vw;
+  height: 100vh;
+  background-color: #020617;
+}

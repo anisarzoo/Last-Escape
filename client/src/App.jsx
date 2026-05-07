@@ -120,7 +120,7 @@ function App() {
           <div className="how-to-play">
             <div className="htp-column">
               <h3>OBJECTIVE</h3>
-              <p>Locate <span>TREASURE</span> at the center. Reach a <span>CORNER EXIT</span> to win.</p>
+              <p>Locate <span>MASTER KEY</span> at the center. Reach a <span>CORNER EXIT</span> to win.</p>
             </div>
             <div className="htp-column">
               <h3>MECHANICS</h3>

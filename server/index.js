@@ -40,7 +40,7 @@ io.on('connection', (socket) => {
       rooms[roomId] = {
         id: roomId,
         players: [],
-        treasure: { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null },
+        key: { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null },
         zoneRadius: MAZE_WIDTH / 1.2,
         gameStarted: false,
         maze: MAZE_MAP,
@@ -62,7 +62,7 @@ io.on('connection', (socket) => {
       hp: 100,
       score: 0,
       range: 3,
-      isCarryingTreasure: false,
+      isCarryingKey: false,
       color: `hsl(${Math.random() * 360}, 70%, 60%)`,
       isHost: rooms[roomId].hostId === socket.id,
       lastShotTime: 0,
@@ -82,8 +82,8 @@ io.on('connection', (socket) => {
     if (player && rooms[player.roomId] && rooms[player.roomId].hostId === socket.id) {
       rooms[player.roomId].gameStarted = true;
       rooms[player.roomId].startTime = Date.now();
-      rooms[player.roomId].treasureHoldTime = 0;
-      rooms[player.roomId].lastTreasureUpdate = null;
+      rooms[player.roomId].keyHoldTime = 0;
+      rooms[player.roomId].lastKeyUpdate = null;
       io.to(player.roomId).emit('game-started');
       startGameLoop(player.roomId);
     }
@@ -163,13 +163,13 @@ io.on('connection', (socket) => {
     if (player) {
       const room = rooms[player.roomId];
       if (room) {
-        // Drop treasure if carrier disconnects
-        if (room.treasure.carrierId === socket.id) {
-          room.treasure.carrierId = null;
-          room.treasure.x = player.x;
-          room.treasure.y = player.y;
-          room.treasureHoldTime = 0;
-          room.lastTreasureUpdate = null;
+        // Drop key if carrier disconnects
+        if (room.key.carrierId === socket.id) {
+          room.key.carrierId = null;
+          room.key.x = player.x;
+          room.key.y = player.y;
+          room.keyHoldTime = 0;
+          room.lastKeyUpdate = null;
         }
         
         room.players = room.players.filter(id => id !== socket.id);
@@ -207,8 +207,8 @@ function startGameLoop(roomId) {
     io.to(roomId).emit('game-state', {
       players: room.players.map(id => players[id]),
       bullets: room.bullets,
-      treasure: room.treasure,
-      treasureHoldTime: room.treasureHoldTime || 0,
+      key: room.key,
+      keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,
       time: Math.floor((Date.now() - room.startTime) / 1000)
     });
@@ -219,8 +219,8 @@ function updateRoom(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
-  // Shrink Zone (only if no one has treasure)
-  if (!room.treasure.carrierId && !room.zoneRemoved) {
+  // Shrink Zone (only if no one has key)
+  if (!room.key.carrierId && !room.zoneRemoved) {
     const shrinkPerTick = 0.1;
     room.zoneRadius = Math.max(0, room.zoneRadius - shrinkPerTick);
   } else {
@@ -253,8 +253,8 @@ function updateRoom(roomId) {
 
       const dist = Math.sqrt((b.x - p.x)**2 + (b.y - p.y)**2);
       if (dist < 20) {
-        // Treasure carrier buff: takes less damage or has a shield
-        const wasCarrier = p.isCarryingTreasure;
+        // Key carrier buff: takes less damage or has a shield
+        const wasCarrier = p.isCarryingKey;
         const damage = wasCarrier ? 15 : 20; 
         p.hp -= damage;
         room.bullets.splice(i, 1);
@@ -267,7 +267,7 @@ function updateRoom(roomId) {
             killer.range = Math.min(8, killer.range + 1);
             p.killedBy = killer.id;
             
-            // Hunter Reward: If you kill the treasure carrier, get +50 HP
+            // Hunter Reward: If you kill the key carrier, get +50 HP
             if (wasCarrier) {
               killer.hp = Math.min(100, killer.hp + 50);
             }
@@ -276,12 +276,12 @@ function updateRoom(roomId) {
           }
           
           if (wasCarrier) {
-            p.isCarryingTreasure = false;
-            room.treasure.carrierId = null;
-            room.treasure.x = p.x;
-            room.treasure.y = p.y;
-            room.treasureHoldTime = 0;
-            room.lastTreasureUpdate = null;
+            p.isCarryingKey = false;
+            room.key.carrierId = null;
+            room.key.x = p.x;
+            room.key.y = p.y;
+            room.keyHoldTime = 0;
+            room.lastKeyUpdate = null;
           }
         }
         break;
@@ -289,49 +289,49 @@ function updateRoom(roomId) {
     }
   }
 
-  // Treasure Pickup & Handling
+  // Key Pickup & Handling
   const now = Date.now();
-  if (!room.treasure.carrierId) {
-    room.treasureHoldTime = 0;
-    room.lastTreasureUpdate = null;
+  if (!room.key.carrierId) {
+    room.keyHoldTime = 0;
+    room.lastKeyUpdate = null;
 
     for (const pId of room.players) {
       const p = players[pId];
       if (!p || p.hp <= 0) continue;
 
-      const dist = Math.sqrt((p.x - room.treasure.x)**2 + (p.y - room.treasure.y)**2);
+      const dist = Math.sqrt((p.x - room.key.x)**2 + (p.y - room.key.y)**2);
       if (dist < 30) {
-        p.isCarryingTreasure = true;
-        room.treasure.carrierId = pId;
-        room.lastTreasureUpdate = now;
+        p.isCarryingKey = true;
+        room.key.carrierId = pId;
+        room.lastKeyUpdate = now;
         break;
       }
     }
   } else {
-    const carrier = players[room.treasure.carrierId];
+    const carrier = players[room.key.carrierId];
     if (carrier && carrier.hp > 0) {
-      room.treasure.x = carrier.x;
-      room.treasure.y = carrier.y;
-      carrier.isCarryingTreasure = true;
+      room.key.x = carrier.x;
+      room.key.y = carrier.y;
+      carrier.isCarryingKey = true;
 
       // Update Hold Time
-      if (room.lastTreasureUpdate) {
-        const delta = (now - room.lastTreasureUpdate) / 1000;
-        room.treasureHoldTime += delta;
-        room.lastTreasureUpdate = now;
+      if (room.lastKeyUpdate) {
+        const delta = (now - room.lastKeyUpdate) / 1000;
+        room.keyHoldTime += delta;
+        room.lastKeyUpdate = now;
 
         // Apply Scaling Health Drain to all OTHER players
-        const drainRate = room.treasureHoldTime < 60 ? 0.5 : 1.0;
+        const drainRate = room.keyHoldTime < 60 ? 0.5 : 1.0;
         const drainAmount = drainRate * delta;
 
         for (const pId of room.players) {
-          if (pId === room.treasure.carrierId) continue;
+          if (pId === room.key.carrierId) continue;
           const p = players[pId];
           if (p && p.hp > 0) {
             p.hp -= drainAmount;
             if (p.hp <= 0) {
               p.hp = 0;
-              p.killedBy = room.treasure.carrierId; // Technically killed by the pressure of the carrier
+              p.killedBy = room.key.carrierId; // Technically killed by the pressure of the carrier
             }
           }
         }
@@ -349,13 +349,13 @@ function updateRoom(roomId) {
         return;
       }
     } else {
-      room.treasure.carrierId = null;
-      room.treasureHoldTime = 0;
-      room.lastTreasureUpdate = null;
+      room.key.carrierId = null;
+      room.keyHoldTime = 0;
+      room.lastKeyUpdate = null;
     }
   }
 
-  // Zone Damage (Legacy, only applies if outside zone)
+      // Zone Damage (Legacy, only applies if outside zone)
   for (const pId of room.players) {
     const p = players[pId];
     if (!p || p.hp <= 0) continue;
@@ -366,13 +366,13 @@ function updateRoom(roomId) {
       if (p.hp <= 0) {
         p.killedBy = 'ZONE';
       }
-      if (p.isCarryingTreasure) {
-        p.isCarryingTreasure = false;
-        room.treasure.carrierId = null;
-        room.treasure.x = p.x;
-        room.treasure.y = p.y;
-        room.treasureHoldTime = 0;
-        room.lastTreasureUpdate = null;
+      if (p.isCarryingKey) {
+        p.isCarryingKey = false;
+        room.key.carrierId = null;
+        room.key.x = p.x;
+        room.key.y = p.y;
+        room.keyHoldTime = 0;
+        room.lastKeyUpdate = null;
       }
     }
   }

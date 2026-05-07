@@ -2,6 +2,39 @@ import React, { useRef, useEffect, useState } from 'react';
 import { socket } from './socket';
 import { MAZE_MAP, TILE_SIZE, MAZE_WIDTH, MAZE_HEIGHT } from './constants';
 
+const drawKey = (ctx, x, y, pulse) => {
+  ctx.save();
+  ctx.translate(x, y);
+  
+  // Floating animation
+  const floatOffset = Math.sin(Date.now() / 300) * 5;
+  ctx.translate(0, floatOffset);
+  
+  ctx.strokeStyle = '#fbbf24';
+  ctx.fillStyle = '#fbbf24';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.shadowBlur = 15 + pulse * 10;
+  ctx.shadowColor = '#fbbf24';
+
+  // Ring/Head
+  ctx.beginPath();
+  ctx.arc(0, -12, 7, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Shaft
+  ctx.beginPath();
+  ctx.moveTo(0, -5);
+  ctx.lineTo(0, 12);
+  ctx.stroke();
+
+  // Bits
+  ctx.fillRect(0, 8, 6, 2.5);
+  ctx.fillRect(0, 4, 4, 2.5);
+  
+  ctx.restore();
+};
+
 const Game = ({ roomData, playerName }) => {
   const canvasRef = useRef(null);
   const posRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
@@ -40,7 +73,7 @@ const Game = ({ roomData, playerName }) => {
       if (!gameOver) {
         let step = 5 * dt;
         const localPlayer = gameState?.players.find(p => p.id === socket.id);
-        if (localPlayer?.isCarryingTreasure) step *= 1.25;
+        if (localPlayer?.isCarryingKey) step *= 1.25;
 
         // 1. Calculate Raw Input Direction (for stable aiming)
         const keys = keysRef.current;
@@ -151,7 +184,7 @@ const Game = ({ roomData, playerName }) => {
         ctx.translate(camX, camY);
 
         // Safe Zone Boundary
-        if (gameState && !gameState.treasure.carrierId) {
+        if (gameState && !gameState.key.carrierId) {
           ctx.save();
           ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)';
           ctx.lineWidth = 15;
@@ -200,12 +233,12 @@ const Game = ({ roomData, playerName }) => {
             ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
           });
 
-          const t = gameState.treasure;
-          if (t && !t.carrierId) {
-            ctx.save(); ctx.shadowBlur = 25; ctx.shadowColor = '#eab308'; ctx.fillStyle = '#eab308';
-            ctx.beginPath(); ctx.arc(t.x, t.y, 14, 0, Math.PI*2); ctx.fill();
+          const k = gameState.key;
+          if (k && !k.carrierId) {
+            const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
+            drawKey(ctx, k.x, k.y, pulse);
             ctx.fillStyle = '#fff'; ctx.font='900 12px Outfit'; ctx.textAlign='center';
-            ctx.fillText('TREASURE', t.x, t.y-25); ctx.restore();
+            ctx.fillText('MASTER KEY', k.x, k.y-35);
           }
 
           gameState.players.forEach(p => {
@@ -228,7 +261,7 @@ const Game = ({ roomData, playerName }) => {
             const grad = ctx.createRadialGradient(0,0,0,0,0,16);
             grad.addColorStop(0, color); grad.addColorStop(1, '#000');
             ctx.fillStyle = grad;
-            if (p.isCarryingTreasure) { 
+            if (p.isCarryingKey) { 
               ctx.shadowBlur = 30; 
               ctx.shadowColor = '#fbbf24'; 
               ctx.strokeStyle = '#fbbf24';
@@ -270,18 +303,18 @@ const Game = ({ roomData, playerName }) => {
         ctx.save(); ctx.translate(24,24); drawPanel(0,0,mSize,mSize);
         MAZE_MAP.forEach((row,y)=>{ row.forEach((tile,x)=>{ if(tile===1){ ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x*TILE_SIZE*mScale, y*TILE_SIZE*mScale, TILE_SIZE*mScale, TILE_SIZE*mScale); } }); });
         if(gameState){
-          if (!gameState.treasure.carrierId) {
+          if (!gameState.key.carrierId) {
             ctx.strokeStyle='rgba(244,63,94,0.5)'; ctx.beginPath(); ctx.arc((MAZE_WIDTH/2)*mScale,(MAZE_HEIGHT/2)*mScale,gameState.zoneRadius*mScale,0,Math.PI*2); ctx.stroke();
           }
-          ctx.fillStyle='#eab308'; ctx.beginPath(); ctx.arc(gameState.treasure.x*mScale, gameState.treasure.y*mScale, 4, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle='#eab308'; ctx.beginPath(); ctx.arc(gameState.key.x*mScale, gameState.key.y*mScale, 4, 0, Math.PI * 2); ctx.fill();
           gameState.players.forEach(p=>{ if(p.hp>0){ ctx.fillStyle=p.id===socket.id?'#6366f1':'#f43f5e'; ctx.beginPath(); ctx.arc((p.id===socket.id?curX:p.x)*mScale, (p.id===socket.id?curY:p.y)*mScale, 3, 0, Math.PI*2); ctx.fill(); }});
         }
         ctx.restore();
 
-        // 2. Treasure Indicator & Warnings (Only for active players)
-        if (gameState && gameState.treasure.carrierId && !isSpectating) {
-          const carrier = gameState.players.find(p => p.id === gameState.treasure.carrierId);
-          const isMe = gameState.treasure.carrierId === socket.id;
+        // 2. Key Indicator & Warnings (Only for active players)
+        if (gameState && gameState.key.carrierId && !isSpectating) {
+          const carrier = gameState.players.find(p => p.id === gameState.key.carrierId);
+          const isMe = gameState.key.carrierId === socket.id;
 
           if (carrier && !isMe) {
             // Draw Compass Arrow
@@ -344,7 +377,7 @@ const Game = ({ roomData, playerName }) => {
             ctx.fillStyle = '#10b981';
             ctx.font = '900 20px Outfit';
             ctx.textAlign = 'center';
-            ctx.fillText('YOU HAVE TREASURE', 0, -5);
+            ctx.fillText('YOU HAVE MASTER KEY', 0, -5);
             ctx.font = '700 12px Outfit';
             ctx.fillStyle = '#fff';
             ctx.fillText('ESCAPE TO THE CORNERS TO WIN!', 0, 15);

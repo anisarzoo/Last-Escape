@@ -257,6 +257,9 @@ function updateRoom(roomId) {
           if (killer) {
             killer.score += 1;
             killer.range = Math.min(8, killer.range + 1);
+            p.killedBy = killer.id;
+          } else {
+            p.killedBy = 'ZONE';
           }
           
           if (p.isCarryingTreasure) {
@@ -311,6 +314,9 @@ function updateRoom(roomId) {
     const distFromCenter = Math.sqrt((p.x - MAZE_WIDTH/2)**2 + (p.y - MAZE_HEIGHT/2)**2);
     if (distFromCenter > room.zoneRadius) {
       p.hp -= 0.5; // Steady drain instead of instant kill
+      if (p.hp <= 0) {
+        p.killedBy = 'ZONE';
+      }
       if (p.isCarryingTreasure) {
         p.isCarryingTreasure = false;
         room.treasure.carrierId = null;

@@ -117,8 +117,33 @@ const Game = ({ roomData, playerName }) => {
 
         const curX = posRef.current.x;
         const curY = posRef.current.y;
-        const camX = width / 2 - curX;
-        const camY = height / 2 - curY;
+        
+        let targetX = curX;
+        let targetY = curY;
+
+        // Spectate Logic: Follow the killer chain
+        if (isSpectating && gameState) {
+          const lp = gameState.players.find(p => p.id === socket.id);
+          let spectateId = lp?.killedBy;
+          
+          // Follow the chain: if my killer is dead, watch who killed them
+          let targetPlayer = gameState.players.find(p => p.id === spectateId);
+          while (targetPlayer && targetPlayer.hp <= 0 && targetPlayer.killedBy && targetPlayer.killedBy !== 'ZONE') {
+            targetPlayer = gameState.players.find(p => p.id === targetPlayer.killedBy);
+          }
+
+          if (targetPlayer && targetPlayer.hp > 0) {
+            targetX = targetPlayer.x;
+            targetY = targetPlayer.y;
+          } else {
+            // Default to map center if everyone is dead or killed by zone
+            targetX = MAZE_WIDTH / 2;
+            targetY = MAZE_HEIGHT / 2;
+          }
+        }
+
+        const camX = width / 2 - targetX;
+        const camY = height / 2 - targetY;
 
         ctx.save();
         ctx.translate(camX, camY);
@@ -297,12 +322,29 @@ const Game = ({ roomData, playerName }) => {
         <div className="elimination-overlay">
           <div className="overlay-content">
             <h1 className="glitch-text">YOU GOT ELIMINATED</h1>
-            <p>Better luck next time, agent.</p>
+            <p>Killed by: {localPlayer.killedBy === 'ZONE' ? 'THE ZONE' : (gameState?.players.find(p=>p.id===localPlayer.killedBy)?.name || 'Unknown Agent')}</p>
             <div className="overlay-buttons">
-              <button onClick={() => setIsSpectating(true)}>SPECTATE</button>
+              <button onClick={() => setIsSpectating(true)}>SPECTATE KILLER</button>
               <button onClick={() => window.location.reload()}>EXIT TO MENU</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Spectate Label */}
+      {isSpectating && !gameOver && (
+        <div className="spectate-label">
+          SPECTATING: {
+            (() => {
+              let sId = localPlayer?.killedBy;
+              let target = gameState?.players.find(p => p.id === sId);
+              while (target && target.hp <= 0 && target.killedBy && target.killedBy !== 'ZONE') {
+                target = gameState?.players.find(p => p.id === target.killedBy);
+              }
+              return target ? target.name.toUpperCase() : 'MAP OVERVIEW';
+            })()
+          }
+          <button className="spectate-exit-btn" onClick={() => window.location.reload()}>EXIT</button>
         </div>
       )}
 

@@ -283,7 +283,6 @@ const Game = ({ roomData, playerName }) => {
           socket.emit('player-move', { x: px, y: py, aimAngle: aimAngleRef.current });
         }
 
-        const now = Date.now();
         if (keys[' '] && now - shootCooldownRef.current > 500) {
           initAudio();
           socket.emit('player-shoot');

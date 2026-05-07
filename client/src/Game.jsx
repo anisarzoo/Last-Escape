@@ -149,12 +149,33 @@ const Game = ({ roomData, playerName }) => {
   const shootCooldownRef = useRef(0);
   const dashCooldownRef = useRef(0);
   const dashTimeRef = useRef(0);
+  const particlesRef = useRef([]);
+
+  const createParticles = (x, y, color, count = 10, speed = 2, life = 1) => {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const s = Math.random() * speed;
+      particlesRef.current.push({
+        x, y,
+        vx: Math.cos(angle) * s,
+        vy: Math.sin(angle) * s,
+        color,
+        life,
+        maxLife: life,
+        size: Math.random() * 3 + 1
+      });
+    }
+  };
 
   // Sync initial position
   useEffect(() => {
     initAudio();
     const handleSound = (data) => {
       playSpatial(data.x, data.y, data.type, posRef.current);
+      // Trigger particles on sound events
+      if (data.type === 'hit') createParticles(data.x, data.y, '#f43f5e', 12, 4);
+      if (data.type === 'shoot') createParticles(data.x, data.y, '#fbbf24', 5, 2);
+      if (data.type === 'dash') createParticles(data.x, data.y, '#6366f1', 15, 3);
     };
     socket.on('play-sound', handleSound);
     return () => socket.off('play-sound', handleSound);
@@ -187,7 +208,10 @@ const Game = ({ roomData, playerName }) => {
         const now = Date.now();
         const isDashing = now - dashTimeRef.current < 200;
         
-        if (isDashing) step *= 4; // Dash speed
+        if (isDashing) {
+          step *= 4; 
+          createParticles(posRef.current.x, posRef.current.y, 'rgba(99, 102, 241, 0.4)', 2, 0.5, 0.5);
+        }
         else {
           const localPlayer = gameState?.players.find(p => p.id === socket.id);
           if (localPlayer?.isCarryingKey) step *= 1.25;
@@ -308,6 +332,22 @@ const Game = ({ roomData, playerName }) => {
 
         ctx.save();
         ctx.translate(camX, camY);
+
+        // --- PARTICLES ---
+        particlesRef.current.forEach((p, i) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life -= 0.02;
+          if (p.life <= 0) {
+            particlesRef.current.splice(i, 1);
+            return;
+          }
+          ctx.save();
+          ctx.globalAlpha = p.life / p.maxLife;
+          ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+          ctx.restore();
+        });
 
         // Safe Zone Boundary
         if (gameState && !gameState.key.carrierId) {

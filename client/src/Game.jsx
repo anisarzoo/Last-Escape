@@ -8,6 +8,7 @@ const Game = ({ roomData, playerName }) => {
   const aimAngleRef = useRef(0);
   const [gameState, setGameState] = useState(null);
   const [gameOver, setGameOver] = useState(null);
+  const [isSpectating, setIsSpectating] = useState(false);
   const [muzzleFlash, setMuzzleFlash] = useState(0);
   const keysRef = useRef({});
 
@@ -122,6 +123,25 @@ const Game = ({ roomData, playerName }) => {
         ctx.save();
         ctx.translate(camX, camY);
 
+        // Safe Zone Boundary
+        if (gameState && !gameState.treasure.carrierId) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)';
+          ctx.lineWidth = 15;
+          ctx.beginPath();
+          ctx.arc(MAZE_WIDTH / 2, MAZE_HEIGHT / 2, gameState.zoneRadius, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)';
+          ctx.lineWidth = 5;
+          ctx.stroke();
+          
+          ctx.shadowBlur = 30;
+          ctx.shadowColor = '#f43f5e';
+          ctx.stroke();
+          ctx.restore();
+        }
+
         // Grid
         ctx.strokeStyle = 'rgba(99, 102, 241, 0.05)'; ctx.lineWidth = 1;
         for (let x=0; x<MAZE_WIDTH; x+=100) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,MAZE_HEIGHT); ctx.stroke(); }
@@ -207,8 +227,10 @@ const Game = ({ roomData, playerName }) => {
         ctx.save(); ctx.translate(24,24); drawPanel(0,0,mSize,mSize);
         MAZE_MAP.forEach((row,y)=>{ row.forEach((tile,x)=>{ if(tile===1){ ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x*TILE_SIZE*mScale, y*TILE_SIZE*mScale, TILE_SIZE*mScale, TILE_SIZE*mScale); } }); });
         if(gameState){
-          ctx.strokeStyle='rgba(244,63,94,0.5)'; ctx.beginPath(); ctx.arc((MAZE_WIDTH/2)*mScale,(MAZE_HEIGHT/2)*mScale,gameState.zoneRadius*mScale,0,Math.PI*2); ctx.stroke();
-          ctx.fillStyle='#eab308'; ctx.beginPath(); ctx.arc(gameState.treasure.x*mScale, gameState.treasure.y*mScale, 4, 0, Math.PI*2); ctx.fill();
+          if (!gameState.treasure.carrierId) {
+            ctx.strokeStyle='rgba(244,63,94,0.5)'; ctx.beginPath(); ctx.arc((MAZE_WIDTH/2)*mScale,(MAZE_HEIGHT/2)*mScale,gameState.zoneRadius*mScale,0,Math.PI*2); ctx.stroke();
+          }
+          ctx.fillStyle='#eab308'; ctx.beginPath(); ctx.arc(gameState.treasure.x*mScale, gameState.treasure.y*mScale, 4, 0, Math.PI * 2); ctx.fill();
           gameState.players.forEach(p=>{ if(p.hp>0){ ctx.fillStyle=p.id===socket.id?'#6366f1':'#f43f5e'; ctx.beginPath(); ctx.arc((p.id===socket.id?curX:p.x)*mScale, (p.id===socket.id?curY:p.y)*mScale, 3, 0, Math.PI*2); ctx.fill(); }});
         }
         ctx.restore();
@@ -263,9 +285,39 @@ const Game = ({ roomData, playerName }) => {
     };
   }, [gameState, gameOver, muzzleFlash]);
 
+  const localPlayer = gameState?.players.find(p => p.id === socket.id);
+  const isEliminated = localPlayer && localPlayer.hp <= 0;
+
   return (
     <div className="game-wrapper">
       <canvas ref={canvasRef} width={window.innerWidth} height={window.innerHeight} style={{ display: 'block' }} />
+      
+      {/* Elimination Overlay */}
+      {isEliminated && !isSpectating && !gameOver && (
+        <div className="elimination-overlay">
+          <div className="overlay-content">
+            <h1 className="glitch-text">YOU GOT ELIMINATED</h1>
+            <p>Better luck next time, agent.</p>
+            <div className="overlay-buttons">
+              <button onClick={() => setIsSpectating(true)}>SPECTATE</button>
+              <button onClick={() => window.location.reload()}>EXIT TO MENU</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Game Over Overlay */}
+      {gameOver && (
+        <div className="elimination-overlay game-over">
+          <div className="overlay-content">
+            <h1 className="winner-text">MISSION ACCOMPLISHED</h1>
+            <p className="winner-name">WINNER: {gameOver.winner.toUpperCase()}</p>
+            <div className="overlay-buttons">
+              <button onClick={() => window.location.reload()}>REDEPLOY</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

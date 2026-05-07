@@ -213,9 +213,13 @@ function updateRoom(roomId) {
   if (!room) return;
 
   // Shrink Zone
-  const elapsed = (Date.now() - room.startTime) / 1000;
-  const shrinkRate = 2; // pixels per second
-  room.zoneRadius = Math.max(0, (MAZE_WIDTH / 0.8) - (elapsed * shrinkRate));
+  if (!room.treasure.carrierId && !room.zoneRemoved) {
+    const shrinkPerTick = 0.1;
+    room.zoneRadius = Math.max(0, room.zoneRadius - shrinkPerTick);
+  } else {
+    room.zoneRemoved = true;
+    room.zoneRadius = 99999;
+  }
 
   // Update Bullets
   for (let i = room.bullets.length - 1; i >= 0; i--) {
@@ -288,13 +292,9 @@ function updateRoom(roomId) {
       carrier.isCarryingTreasure = true;
 
       // Win Condition Check: Escape map through corners
-      const tileX = Math.floor(carrier.x / TILE_SIZE);
-      const tileY = Math.floor(carrier.y / TILE_SIZE);
-      
-      const isAtCorner = MAZE_MAP[tileY] && MAZE_MAP[tileY][tileX] === 2;
-      const isOutside = carrier.x < 0 || carrier.x > MAZE_WIDTH || carrier.y < 0 || carrier.y > MAZE_HEIGHT;
+      const isOutside = carrier.x < -20 || carrier.x > MAZE_WIDTH + 20 || carrier.y < -20 || carrier.y > MAZE_HEIGHT + 20;
 
-      if (isAtCorner && isOutside) {
+      if (isOutside) {
         io.to(roomId).emit('game-over', { winner: carrier.name });
         delete rooms[roomId];
       }
@@ -310,7 +310,7 @@ function updateRoom(roomId) {
 
     const distFromCenter = Math.sqrt((p.x - MAZE_WIDTH/2)**2 + (p.y - MAZE_HEIGHT/2)**2);
     if (distFromCenter > room.zoneRadius) {
-      p.hp = 0; // Instant elimination
+      p.hp -= 0.5; // Steady drain instead of instant kill
       if (p.isCarryingTreasure) {
         p.isCarryingTreasure = false;
         room.treasure.carrierId = null;

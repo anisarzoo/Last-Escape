@@ -226,9 +226,17 @@ const Game = ({ roomData, playerName }) => {
             const grad = ctx.createRadialGradient(0,0,0,0,0,16);
             grad.addColorStop(0, color); grad.addColorStop(1, '#000');
             ctx.fillStyle = grad;
-            if (p.isCarryingTreasure) { ctx.shadowBlur = 20; ctx.shadowColor = '#eab308'; }
+            if (p.isCarryingTreasure) { 
+              ctx.shadowBlur = 30; 
+              ctx.shadowColor = '#fbbf24'; 
+              ctx.strokeStyle = '#fbbf24';
+              ctx.lineWidth = 4;
+            } else {
+              ctx.strokeStyle='#fff'; 
+              ctx.lineWidth=2; 
+            }
             ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill();
-            ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); ctx.shadowBlur=0;
+            ctx.stroke(); ctx.shadowBlur=0;
 
             const barW=44, barH=6;
             ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(-barW/2, -38, barW, barH);
@@ -248,6 +256,7 @@ const Game = ({ roomData, playerName }) => {
           ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke();
         };
 
+        // 1. Minimap
         const mSize=160, mScale=mSize/MAZE_WIDTH;
         ctx.save(); ctx.translate(24,24); drawPanel(0,0,mSize,mSize);
         MAZE_MAP.forEach((row,y)=>{ row.forEach((tile,x)=>{ if(tile===1){ ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x*TILE_SIZE*mScale, y*TILE_SIZE*mScale, TILE_SIZE*mScale, TILE_SIZE*mScale); } }); });
@@ -260,17 +269,92 @@ const Game = ({ roomData, playerName }) => {
         }
         ctx.restore();
 
-        if(gameState){
+        // 2. Treasure Indicator & Warnings (Only for active players)
+        if (gameState && gameState.treasure.carrierId && !isSpectating) {
+          const carrier = gameState.players.find(p => p.id === gameState.treasure.carrierId);
+          const isMe = gameState.treasure.carrierId === socket.id;
+
+          if (carrier && !isMe) {
+            // Draw Compass Arrow
+            const dx = carrier.x - curX;
+            const dy = carrier.y - curY;
+            const angle = Math.atan2(dy, dx);
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            // Only show arrow if carrier is off-screen (approx)
+            if (dist > 400) {
+              ctx.save();
+              ctx.translate(width / 2, height / 2);
+              ctx.rotate(angle);
+              
+              // Arrow Style
+              ctx.beginPath();
+              ctx.moveTo(100, -15);
+              ctx.lineTo(130, 0);
+              ctx.lineTo(100, 15);
+              ctx.closePath();
+              
+              ctx.fillStyle = '#fbbf24';
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#fbbf24';
+              ctx.fill();
+              
+              ctx.fillStyle = '#fff';
+              ctx.font = '900 12px Outfit';
+              ctx.textAlign = 'center';
+              ctx.rotate(-angle); // Keep text horizontal
+              const labelX = Math.cos(angle) * 150;
+              const labelY = Math.sin(angle) * 150;
+              ctx.fillText(`${Math.round(dist/TILE_SIZE)}M`, labelX, labelY);
+              ctx.restore();
+            }
+
+            // Health Drain Warning
+            ctx.save();
+            ctx.translate(width / 2, 100);
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
+            ctx.beginPath(); ctx.roundRect(-150, -30, 300, 60, 10); ctx.fill();
+            ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2; ctx.stroke();
+            
+            ctx.fillStyle = '#f43f5e';
+            ctx.font = '900 20px Outfit';
+            ctx.textAlign = 'center';
+            ctx.fillText('HEALTH DRAINING!', 0, -5);
+            ctx.font = '700 12px Outfit';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`ELIMINATE ${carrier.name.toUpperCase()} TO STOP`, 0, 15);
+            ctx.restore();
+          } else if (isMe) {
+            // "You have the treasure" message
+            ctx.save();
+            ctx.translate(width / 2, 100);
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+            ctx.beginPath(); ctx.roundRect(-150, -30, 300, 60, 10); ctx.fill();
+            ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.stroke();
+            
+            ctx.fillStyle = '#10b981';
+            ctx.font = '900 20px Outfit';
+            ctx.textAlign = 'center';
+            ctx.fillText('YOU HAVE TREASURE', 0, -5);
+            ctx.font = '700 12px Outfit';
+            ctx.fillStyle = '#fff';
+            ctx.fillText('ESCAPE TO THE CORNERS TO WIN!', 0, 15);
+            ctx.restore();
+          }
+        }
+
+        if(gameState && !isSpectating){
           const lp = gameState.players.find(p=>p.id===socket.id);
           if(lp){
             const hW=280, hH=100; ctx.save(); ctx.translate(24, height-hH-24); drawPanel(0,0,hW,hH);
             ctx.fillStyle='#fff'; ctx.font='900 14px Outfit'; ctx.fillText(`ROOM: ${roomData.id}`, 20, 30);
             ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(20,45,hW-40,10);
             ctx.fillStyle=lp.hp>30?'#10b981':'#f43f5e'; ctx.fillRect(20,45,(lp.hp/100)*(hW-40),10);
-            ctx.fillStyle='#94a3b8'; ctx.font='700 12px Outfit'; ctx.fillText(`KILLS: ${lp.score}`, 20, 80); ctx.fillText(`RANGE: ${lp.range} TILE`, 120, 80); ctx.fillText(`HP: ${lp.hp}`, 220, 80);
+            ctx.fillStyle='#94a3b8'; ctx.font='700 12px Outfit'; ctx.fillText(`KILLS: ${lp.score}`, 20, 80); ctx.fillText(`RANGE: ${lp.range} TILE`, 120, 80); ctx.fillText(`HP: ${Math.ceil(lp.hp)}`, 220, 80);
             ctx.restore();
           }
         }
+
 
         const cW=220, cH=100; ctx.save(); ctx.translate(width-cW-24, height-cH-24); drawPanel(0,0,cW,cH);
         ctx.fillStyle='#fff'; ctx.font='900 12px Outfit'; ctx.fillText('CONTROLS', 20, 25);

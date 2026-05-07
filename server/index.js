@@ -39,7 +39,7 @@ io.on('connection', (socket) => {
         id: roomId,
         players: [],
         treasure: { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null },
-        zoneRadius: MAZE_WIDTH / 0.8,
+        zoneRadius: MAZE_WIDTH / 1.2,
         gameStarted: false,
         maze: MAZE_MAP,
         bullets: [],
@@ -80,6 +80,8 @@ io.on('connection', (socket) => {
     if (player && rooms[player.roomId] && rooms[player.roomId].hostId === socket.id) {
       rooms[player.roomId].gameStarted = true;
       rooms[player.roomId].startTime = Date.now();
+      rooms[player.roomId].treasureHoldTime = 0;
+      rooms[player.roomId].lastTreasureUpdate = null;
       io.to(player.roomId).emit('game-started');
       startGameLoop(player.roomId);
     }
@@ -164,6 +166,8 @@ io.on('connection', (socket) => {
           room.treasure.carrierId = null;
           room.treasure.x = player.x;
           room.treasure.y = player.y;
+          room.treasureHoldTime = 0;
+          room.lastTreasureUpdate = null;
         }
         
         room.players = room.players.filter(id => id !== socket.id);
@@ -202,6 +206,7 @@ function startGameLoop(roomId) {
       players: room.players.map(id => players[id]),
       bullets: room.bullets,
       treasure: room.treasure,
+      treasureHoldTime: room.treasureHoldTime || 0,
       zoneRadius: room.zoneRadius,
       time: Math.floor((Date.now() - room.startTime) / 1000)
     });
@@ -212,7 +217,7 @@ function updateRoom(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
-  // Shrink Zone
+  // Shrink Zone (only if no one has treasure)
   if (!room.treasure.carrierId && !room.zoneRemoved) {
     const shrinkPerTick = 0.1;
     room.zoneRadius = Math.max(0, room.zoneRadius - shrinkPerTick);
@@ -247,7 +252,8 @@ function updateRoom(roomId) {
       const dist = Math.sqrt((b.x - p.x)**2 + (b.y - p.y)**2);
       if (dist < 20) {
         // Treasure carrier buff: takes less damage or has a shield
-        const damage = p.isCarryingTreasure ? 15 : 20; 
+        const wasCarrier = p.isCarryingTreasure;
+        const damage = wasCarrier ? 15 : 20; 
         p.hp -= damage;
         room.bullets.splice(i, 1);
 
@@ -258,15 +264,22 @@ function updateRoom(roomId) {
             killer.score += 1;
             killer.range = Math.min(8, killer.range + 1);
             p.killedBy = killer.id;
+            
+            // Hunter Reward: If you kill the treasure carrier, get +50 HP
+            if (wasCarrier) {
+              killer.hp = Math.min(100, killer.hp + 50);
+            }
           } else {
             p.killedBy = 'ZONE';
           }
           
-          if (p.isCarryingTreasure) {
+          if (wasCarrier) {
             p.isCarryingTreasure = false;
             room.treasure.carrierId = null;
             room.treasure.x = p.x;
             room.treasure.y = p.y;
+            room.treasureHoldTime = 0;
+            room.lastTreasureUpdate = null;
           }
         }
         break;
@@ -274,8 +287,12 @@ function updateRoom(roomId) {
     }
   }
 
-  // Treasure Pickup
+  // Treasure Pickup & Handling
+  const now = Date.now();
   if (!room.treasure.carrierId) {
+    room.treasureHoldTime = 0;
+    room.lastTreasureUpdate = null;
+
     for (const pId of room.players) {
       const p = players[pId];
       if (!p || p.hp <= 0) continue;
@@ -284,15 +301,39 @@ function updateRoom(roomId) {
       if (dist < 30) {
         p.isCarryingTreasure = true;
         room.treasure.carrierId = pId;
+        room.lastTreasureUpdate = now;
         break;
       }
     }
   } else {
     const carrier = players[room.treasure.carrierId];
-    if (carrier) {
+    if (carrier && carrier.hp > 0) {
       room.treasure.x = carrier.x;
       room.treasure.y = carrier.y;
       carrier.isCarryingTreasure = true;
+
+      // Update Hold Time
+      if (room.lastTreasureUpdate) {
+        const delta = (now - room.lastTreasureUpdate) / 1000;
+        room.treasureHoldTime += delta;
+        room.lastTreasureUpdate = now;
+
+        // Apply Scaling Health Drain to all OTHER players
+        const drainRate = room.treasureHoldTime < 60 ? 0.5 : 1.0;
+        const drainAmount = drainRate * delta;
+
+        for (const pId of room.players) {
+          if (pId === room.treasure.carrierId) continue;
+          const p = players[pId];
+          if (p && p.hp > 0) {
+            p.hp -= drainAmount;
+            if (p.hp <= 0) {
+              p.hp = 0;
+              p.killedBy = room.treasure.carrierId; // Technically killed by the pressure of the carrier
+            }
+          }
+        }
+      }
 
       // Win Condition Check: Escape map through corners
       const isOutside = carrier.x < -20 || carrier.x > MAZE_WIDTH + 20 || carrier.y < -20 || carrier.y > MAZE_HEIGHT + 20;
@@ -300,13 +341,16 @@ function updateRoom(roomId) {
       if (isOutside) {
         io.to(roomId).emit('game-over', { winner: carrier.name });
         delete rooms[roomId];
+        return;
       }
     } else {
       room.treasure.carrierId = null;
+      room.treasureHoldTime = 0;
+      room.lastTreasureUpdate = null;
     }
   }
 
-  // Zone Damage
+  // Zone Damage (Legacy, only applies if outside zone)
   for (const pId of room.players) {
     const p = players[pId];
     if (!p || p.hp <= 0) continue;
@@ -322,7 +366,10 @@ function updateRoom(roomId) {
         room.treasure.carrierId = null;
         room.treasure.x = p.x;
         room.treasure.y = p.y;
+        room.treasureHoldTime = 0;
+        room.lastTreasureUpdate = null;
       }
     }
   }
 }
+

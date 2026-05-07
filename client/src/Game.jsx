@@ -2,6 +2,108 @@ import React, { useRef, useEffect, useState } from 'react';
 import { socket } from './socket';
 import { MAZE_MAP, TILE_SIZE, MAZE_WIDTH, MAZE_HEIGHT } from './constants';
 
+// --- AUDIO ENGINE ---
+let audioCtx = null;
+const initAudio = () => {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+};
+
+const playSpatial = (x, y, type, listenerPos) => {
+  if (!audioCtx) return;
+  
+  const panner = audioCtx.createPanner();
+  panner.panningModel = 'equalpower';
+  panner.distanceModel = 'exponential';
+  panner.refDistance = 100;
+  panner.maxDistance = 1500;
+  panner.rolloffFactor = 1.5;
+  
+  // Set position (Normalized to maze units)
+  panner.positionX.value = x;
+  panner.positionY.value = y;
+  panner.positionZ.value = 300; // Elevation
+
+  // Set Listener
+  audioCtx.listener.positionX.value = listenerPos.x;
+  audioCtx.listener.positionY.value = listenerPos.y;
+  audioCtx.listener.positionZ.value = 500;
+
+  const gain = audioCtx.createGain();
+  gain.connect(panner);
+  panner.connect(audioCtx.destination);
+
+  const now = audioCtx.currentTime;
+
+  if (type === 'shoot') {
+    // Noise-based gunshot
+    const bufferSize = audioCtx.sampleRate * 0.1;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1000;
+    
+    noise.connect(filter);
+    filter.connect(gain);
+    
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    noise.start(now);
+    noise.stop(now + 0.1);
+  } 
+  else if (type === 'hit') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+    
+    osc.connect(gain);
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }
+  else if (type === 'pickup') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.4);
+    
+    osc.connect(gain);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+    osc.start(now);
+    osc.stop(now + 0.4);
+  }
+  else if (type === 'dash') {
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 1000;
+    
+    const bufferSize = audioCtx.sampleRate * 0.2;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    noise.connect(filter);
+    filter.connect(gain);
+
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    noise.start(now);
+    noise.stop(now + 0.2);
+  }
+};
+
 const drawKey = (ctx, x, y, pulse) => {
   ctx.save();
   ctx.translate(x, y);
@@ -45,8 +147,18 @@ const Game = ({ roomData, playerName }) => {
   const [muzzleFlash, setMuzzleFlash] = useState(0);
   const keysRef = useRef({});
   const shootCooldownRef = useRef(0);
+  const dashCooldownRef = useRef(0);
+  const dashTimeRef = useRef(0);
 
   // Sync initial position
+  useEffect(() => {
+    initAudio();
+    const handleSound = (data) => {
+      playSpatial(data.x, data.y, data.type, posRef.current);
+    };
+    socket.on('play-sound', handleSound);
+    return () => socket.off('play-sound', handleSound);
+  }, []);
   useEffect(() => {
     if (roomData) {
       const me = roomData.players.find(p => p.id === socket.id);
@@ -72,10 +184,23 @@ const Game = ({ roomData, playerName }) => {
       // 1. PHYSICS & INPUT
       if (!gameOver) {
         let step = 5 * dt;
-        const localPlayer = gameState?.players.find(p => p.id === socket.id);
-        if (localPlayer?.isCarryingKey) step *= 1.25;
+        const now = Date.now();
+        const isDashing = now - dashTimeRef.current < 200;
+        
+        if (isDashing) step *= 4; // Dash speed
+        else {
+          const localPlayer = gameState?.players.find(p => p.id === socket.id);
+          if (localPlayer?.isCarryingKey) step *= 1.25;
+        }
 
-        // 1. Calculate Raw Input Direction (for stable aiming)
+        // Handle Dash Trigger
+        if (keys['Shift'] && now - dashCooldownRef.current > 3000 && !isDashing) {
+          dashTimeRef.current = now;
+          dashCooldownRef.current = now;
+          socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
+        }
+
+        // 1. Calculate Raw Input Direction
         const keys = keysRef.current;
         let inputX = 0;
         let inputY = 0;
@@ -136,6 +261,7 @@ const Game = ({ roomData, playerName }) => {
 
         const now = Date.now();
         if (keys[' '] && now - shootCooldownRef.current > 500) {
+          initAudio();
           socket.emit('player-shoot');
           setMuzzleFlash(now);
           shootCooldownRef.current = now;
@@ -393,6 +519,15 @@ const Game = ({ roomData, playerName }) => {
             ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(20,45,hW-40,10);
             ctx.fillStyle=lp.hp>30?'#10b981':'#f43f5e'; ctx.fillRect(20,45,(lp.hp/100)*(hW-40),10);
             ctx.fillStyle='#94a3b8'; ctx.font='700 12px Outfit'; ctx.fillText(`KILLS: ${lp.score}`, 20, 80); ctx.fillText(`RANGE: ${lp.range} TILE`, 120, 80); ctx.fillText(`HP: ${Math.ceil(lp.hp)}`, 220, 80);
+            
+            // Dash Cooldown in HUD
+            const dashCD = Math.max(0, 3000 - (Date.now() - dashCooldownRef.current));
+            if (dashCD > 0) {
+              ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
+              ctx.fillRect(20, 90, hW - 40, 4);
+              ctx.fillStyle = '#6366f1';
+              ctx.fillRect(20, 90, (1 - dashCD / 3000) * (hW - 40), 4);
+            }
             ctx.restore();
           }
         }
@@ -400,7 +535,7 @@ const Game = ({ roomData, playerName }) => {
 
         const cW=220, cH=100; ctx.save(); ctx.translate(width-cW-24, height-cH-24); drawPanel(0,0,cW,cH);
         ctx.fillStyle='#fff'; ctx.font='900 12px Outfit'; ctx.fillText('CONTROLS', 20, 25);
-        ctx.fillStyle='#94a3b8'; ctx.font='700 11px Outfit'; ctx.fillText('CURSORS : MOVE', 20, 50); ctx.fillText('WASD : AIM', 20, 70); ctx.fillText('SPACE : FIRE', 20, 90); ctx.restore();
+        ctx.fillStyle='#94a3b8'; ctx.font='700 11px Outfit'; ctx.fillText('CURSORS : MOVE', 20, 50); ctx.fillText('WASD : AIM', 20, 70); ctx.fillText('SPACE : FIRE', 20, 90); ctx.fillText('SHIFT : DASH', 120, 90); ctx.restore();
 
         if(gameOver){
           ctx.fillStyle='rgba(2,6,23,0.9)'; ctx.fillRect(0,0,width,height);

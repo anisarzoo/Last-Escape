@@ -154,7 +154,15 @@ io.on('connection', (socket) => {
           distanceTraveled: 0
         };
         room.bullets.push(bullet);
+        io.to(player.roomId).emit('play-sound', { x: player.x, y: player.y, type: 'shoot' });
       }
+    }
+  });
+
+  socket.on('play-sound', (data) => {
+    const player = players[socket.id];
+    if (player) {
+      io.to(player.roomId).emit('play-sound', data);
     }
   });
 
@@ -258,6 +266,7 @@ function updateRoom(roomId) {
         const damage = wasCarrier ? 15 : 20; 
         p.hp -= damage;
         room.bullets.splice(i, 1);
+        io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'hit' });
 
         if (p.hp <= 0) {
           // Elimination
@@ -304,6 +313,7 @@ function updateRoom(roomId) {
         p.isCarryingKey = true;
         room.key.carrierId = pId;
         room.lastKeyUpdate = now;
+        io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'pickup' });
         break;
       }
     }

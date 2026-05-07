@@ -11,6 +11,7 @@ const Game = ({ roomData, playerName }) => {
   const [isSpectating, setIsSpectating] = useState(false);
   const [muzzleFlash, setMuzzleFlash] = useState(0);
   const keysRef = useRef({});
+  const shootCooldownRef = useRef(0);
 
   // Sync initial position
   useEffect(() => {
@@ -100,10 +101,11 @@ const Game = ({ roomData, playerName }) => {
           socket.emit('player-move', { x: px, y: py, aimAngle: aimAngleRef.current });
         }
 
-        if (keys[' ']) {
+        const now = Date.now();
+        if (keys[' '] && now - shootCooldownRef.current > 500) {
           socket.emit('player-shoot');
-          setMuzzleFlash(Date.now());
-          keys[' '] = false;
+          setMuzzleFlash(now);
+          shootCooldownRef.current = now;
         }
       }
 
@@ -238,13 +240,20 @@ const Game = ({ roomData, playerName }) => {
             ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill();
             ctx.stroke(); ctx.shadowBlur=0;
 
-            const barW=44, barH=6;
-            ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(-barW/2, -38, barW, barH);
-            ctx.fillStyle = p.hp > 30 ? '#10b981' : '#f43f5e';
-            ctx.fillRect(-barW/2, -38, (p.hp/100)*barW, barH);
+            // Only draw overhead UI for other players
+            if (!isMe) {
+              const barW = 44, barH = 6;
+              ctx.fillStyle = 'rgba(0,0,0,0.5)'; 
+              ctx.fillRect(-barW/2, -38, barW, barH);
+              
+              ctx.fillStyle = p.hp > 30 ? '#10b981' : '#f43f5e';
+              ctx.fillRect(-barW/2, -38, (p.hp/100)*barW, barH);
 
-            ctx.fillStyle='#fff'; ctx.font='900 12px Outfit'; ctx.textAlign='center';
-            ctx.fillText(p.name.toUpperCase(), 0, -45);
+              ctx.fillStyle = '#fff'; 
+              ctx.font = '900 12px Outfit'; 
+              ctx.textAlign = 'center';
+              ctx.fillText(p.name.toUpperCase(), 0, -45);
+            }
             ctx.restore();
           });
         }

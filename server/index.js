@@ -27,11 +27,13 @@ io.on('connection', (socket) => {
 
   socket.on('join-room', ({ roomId, playerName }) => {
     socket.join(roomId);
+    
+    // Spawn points at absolute corners
     const spawnPoints = [
-      { x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5 }, // Top Left
-      { x: MAZE_WIDTH - TILE_SIZE * 1.5, y: MAZE_HEIGHT - TILE_SIZE * 1.5 }, // Bottom Right (Opposite)
-      { x: MAZE_WIDTH - TILE_SIZE * 1.5, y: TILE_SIZE * 1.5 }, // Top Right
-      { x: TILE_SIZE * 1.5, y: MAZE_HEIGHT - TILE_SIZE * 1.5 } // Bottom Left (Opposite)
+      { x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 }, // Top Left (0,0)
+      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom Right (30,30)
+      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 }, // Top Right (0,30)
+      { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 } // Bottom Left (30,0)
     ];
 
     if (!rooms[roomId]) {
@@ -335,10 +337,13 @@ function updateRoom(roomId) {
         }
       }
 
-      // Win Condition Check: Escape map through corners
+      // Win Condition Check: Escape map through corners or reach EXIT tile
+      const tileX = Math.floor(carrier.x / TILE_SIZE);
+      const tileY = Math.floor(carrier.y / TILE_SIZE);
+      const onExitTile = MAZE_MAP[tileY] && MAZE_MAP[tileY][tileX] === 2;
       const isOutside = carrier.x < -20 || carrier.x > MAZE_WIDTH + 20 || carrier.y < -20 || carrier.y > MAZE_HEIGHT + 20;
 
-      if (isOutside) {
+      if (onExitTile || isOutside) {
         io.to(roomId).emit('game-over', { winner: carrier.name });
         delete rooms[roomId];
         return;
@@ -372,4 +377,3 @@ function updateRoom(roomId) {
     }
   }
 }
-

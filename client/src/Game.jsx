@@ -4,7 +4,7 @@ import { MAZE_MAP, TILE_SIZE, MAZE_WIDTH, MAZE_HEIGHT } from './constants';
 
 const Game = ({ roomData, playerName }) => {
   const canvasRef = useRef(null);
-  const posRef = useRef({ x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5 });
+  const posRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
   const aimAngleRef = useRef(0);
   const [gameState, setGameState] = useState(null);
   const [gameOver, setGameOver] = useState(null);

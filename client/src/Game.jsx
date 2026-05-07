@@ -207,6 +207,7 @@ const Game = ({ roomData, playerName }) => {
         let step = 5 * dt;
         const now = Date.now();
         const isDashing = now - dashTimeRef.current < 200;
+        const keys = keysRef.current;
         
         if (isDashing) {
           step *= 4; 
@@ -225,7 +226,6 @@ const Game = ({ roomData, playerName }) => {
         }
 
         // 1. Calculate Raw Input Direction
-        const keys = keysRef.current;
         let inputX = 0;
         let inputY = 0;
         if (keys['ArrowUp']) inputY -= 1;

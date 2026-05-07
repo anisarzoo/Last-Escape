@@ -66,7 +66,8 @@ io.on('connection', (socket) => {
       color: `hsl(${Math.random() * 360}, 70%, 60%)`,
       isHost: rooms[roomId].hostId === socket.id,
       lastShotTime: 0,
-      aimAngle: 0
+      aimAngle: 0,
+      totalKeyHoldTime: 0
     };
 
     rooms[roomId].players.push(socket.id);
@@ -328,6 +329,7 @@ function updateRoom(roomId) {
       if (room.lastKeyUpdate) {
         const delta = (now - room.lastKeyUpdate) / 1000;
         room.keyHoldTime += delta;
+        carrier.totalKeyHoldTime += delta;
         room.lastKeyUpdate = now;
 
         // Apply Scaling Health Drain to all OTHER players
@@ -354,7 +356,15 @@ function updateRoom(roomId) {
       const isOutside = carrier.x < -20 || carrier.x > MAZE_WIDTH + 20 || carrier.y < -20 || carrier.y > MAZE_HEIGHT + 20;
 
       if (onExitTile || isOutside) {
-        io.to(roomId).emit('game-over', { winner: carrier.name });
+        io.to(roomId).emit('game-over', { 
+          winner: carrier.name,
+          stats: room.players.map(id => ({
+            name: players[id].name,
+            score: players[id].score,
+            holdTime: Math.floor(players[id].totalKeyHoldTime || 0),
+            isWinner: id === room.key.carrierId
+          }))
+        });
         delete rooms[roomId];
         return;
       }

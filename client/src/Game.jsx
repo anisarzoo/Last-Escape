@@ -652,9 +652,31 @@ const Game = ({ roomData, playerName }) => {
       {/* Game Over Overlay */}
       {gameOver && (
         <div className="elimination-overlay game-over">
-          <div className="overlay-content">
+          <div className="overlay-content summary-box">
             <h1 className="winner-text">MISSION ACCOMPLISHED</h1>
             <p className="winner-name">WINNER: {gameOver.winner.toUpperCase()}</p>
+            
+            <div className="match-stats">
+              <table>
+                <thead>
+                  <tr>
+                    <th>AGENT</th>
+                    <th>KILLS</th>
+                    <th>HOLD TIME</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gameOver.stats?.sort((a,b) => b.score - a.score).map((s, i) => (
+                    <tr key={i} className={s.isWinner ? 'winner-row' : ''}>
+                      <td>{s.name.toUpperCase()} {s.isWinner ? '🏆' : ''}</td>
+                      <td>{s.score}</td>
+                      <td>{s.holdTime}s</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
             <div className="overlay-buttons">
               <button onClick={() => window.location.reload()}>REDEPLOY</button>
             </div>

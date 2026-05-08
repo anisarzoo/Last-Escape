@@ -1129,3 +1129,25 @@ button:disabled {
   z-index: 20;
 }
 
+@media (max-width: 600px) {
+  .winner-text {
+    font-size: 2.5rem;
+  }
+  .winner-name {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .overlay-content.summary-box {
+    padding: 2rem 1rem;
+    width: 95%;
+  }
+  .match-stats {
+    padding: 1rem 0.5rem;
+    margin: 1.5rem 0;
+  }
+  .match-stats th,
+  .match-stats td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+  }
+}

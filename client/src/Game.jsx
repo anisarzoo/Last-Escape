@@ -905,9 +905,9 @@ const Game = ({ roomData, playerName }) => {
       {gameOver && (
         <div className="elimination-overlay game-over">
           <div className="overlay-content summary-box">
-            <h1 className="winner-text" style={{fontSize: '3rem'}}>MISSION END</h1>
-            <p className="winner-name" style={{fontSize: '1.5rem', marginBottom: '2rem'}}>
-              WINNER: <span style={{color: 'var(--accent)'}}>{gameOver.winner.toUpperCase()}</span>
+            <h1 className="winner-text">MISSION END</h1>
+            <p className="winner-name">
+              WINNER: <span>{gameOver.winner.toUpperCase()}</span>
             </p>
             
             <div className="match-stats">

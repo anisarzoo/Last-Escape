@@ -374,7 +374,7 @@ const Game = ({ roomData }) => {
           speedMultiplier = 4;
           createParticles(posRef.current.x, posRef.current.y, 'rgba(99, 102, 241, 0.4)', 2, 0.5, 0.5);
         } else if (localPlayer?.isCarryingKey) {
-          speedMultiplier = 1.25;
+          speedMultiplier = 1.15;
         }
 
         if ((keys['Shift'] || keys['MouseRight']) && now - dashCooldownRef.current > 3000 && !isDashing) {
@@ -399,8 +399,8 @@ const Game = ({ roomData }) => {
           inputY = moveJoystickRef.current.y;
         }
 
-        const ACCEL = 1.2 * dt * speedMultiplier;
-        const FRICTION = isDashing ? 0.98 : 0.90;
+        const ACCEL = 0.8 * dt * speedMultiplier;
+        const FRICTION = isDashing ? 0.98 : 0.85;
         if (inputX !== 0) velRef.current.x += inputX * ACCEL;
         if (inputY !== 0) velRef.current.y += inputY * ACCEL;
         const frictionDt = Math.pow(FRICTION, dt);

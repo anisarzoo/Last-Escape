@@ -167,12 +167,20 @@ function App() {
             <p>Exit gates are <span>biometrically locked</span>. You must secure the <span>Master Key</span> and hold it for <span>60 seconds</span> to override the lockdown and open the exits.</p>
           </div>
           <div className="rules-section">
+            <h5>Neural Siphon</h5>
+            <p>The key holder <span>drains health</span> from all opponents. Siphon intensity <span>doubles</span> after 60 seconds of possession.</p>
+          </div>
+          <div className="rules-section">
+            <h5>Biometric Shield</h5>
+            <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>25%</span>.</p>
+          </div>
+          <div className="rules-section">
             <h5>Combat Siphon</h5>
-            <p>Every confirmed elimination restores <span>25% of your max health</span> and permanently boosts your <span>Weapon Range</span>.</p>
+            <p>Every elimination restores <span>25% HP</span> and permanently boosts your <span>Weapon Range</span>.</p>
           </div>
           <div className="rules-section">
             <h5>Atmospheric Collapse</h5>
-            <p>The <span>Safe Zone</span> shrinks continuously until the <span>Master Key</span> is secured. Once captured, the zone stabilizes.</p>
+            <p>The <span>Safe Zone</span> shrinks until the <span>Master Key</span> is secured. Once captured, the zone stabilizes.</p>
           </div>
         </div>
 
@@ -345,7 +353,8 @@ function App() {
                 <h3>MECHANICS</h3>
               </div>
               <ul>
-                <li><span>DRAIN</span>: The key carrier siphons health from enemy players over time.</li>
+                <li><span>DRAIN</span>: The key carrier siphons health from opponents (intensity doubles after 60s).</li>
+                <li><span>SHIELD</span>: Holding the Master Key reduces incoming bullet damage by 25%.</li>
                 <li><span>REWARD</span>: Eliminating opponents restores HP and boosts weapon range.</li>
                 <li><span>ZONE</span>: The safe zone shrinks continuously until the key is secured.</li>
               </ul>

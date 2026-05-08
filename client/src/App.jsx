@@ -7,7 +7,8 @@ import {
   Gamepad2, 
   Crown, 
   Copy, 
-  Check 
+  Check,
+  HelpCircle
 } from 'lucide-react';
 import './App.css';
 
@@ -17,7 +18,7 @@ const MODE_OPTIONS = [
   { value: '4v4', label: '4v4', description: 'Two teams, 4 players each' }
 ];
 
-const APP_VERSION = "v1.6.4";
+const APP_VERSION = "v1.6.5";
 
 const modeLabels = {
   ffa: 'Free For All',
@@ -31,6 +32,7 @@ function App() {
   const [isJoined, setIsJoined] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [roomData, setRoomData] = useState(null);
+  const [showRules, setShowRules] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [error, setError] = useState('');
   const [selectedMode, setSelectedMode] = useState('ffa');
@@ -140,6 +142,40 @@ function App() {
   if (!gameStarted) {
     return (
       <div className="lobby-container">
+        {/* Floating Game Rules Tooltip */}
+        <div 
+          className={`rules-floating-btn ${showRules ? 'active' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowRules(!showRules);
+          }}
+        >
+          <HelpCircle size={24} />
+        </div>
+
+        {/* Global Click Handler to close rules */}
+        {showRules && <div className="rules-backdrop" onClick={() => setShowRules(false)}></div>}
+
+        {/* Rules Modal - Moved out of button for correct stacking context */}
+        <div className={`rules-tooltip-card ${showRules ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
+          <div className="rules-header-row">
+            <h4>ADVANCED PROTOCOLS</h4>
+            <button className="rules-close-btn" onClick={() => setShowRules(false)}>&times;</button>
+          </div>
+          <div className="rules-section">
+            <h5>Gate Lockdown</h5>
+            <p>Exit gates are <span>biometrically locked</span>. You must secure the <span>Master Key</span> and hold it for <span>60 seconds</span> to override the lockdown and open the exits.</p>
+          </div>
+          <div className="rules-section">
+            <h5>Combat Siphon</h5>
+            <p>Every confirmed elimination restores <span>25% of your max health</span> and permanently boosts your <span>Weapon Range</span>.</p>
+          </div>
+          <div className="rules-section">
+            <h5>Atmospheric Collapse</h5>
+            <p>The <span>Safe Zone</span> shrinks continuously until the <span>Master Key</span> is secured. Once captured, the zone stabilizes.</p>
+          </div>
+        </div>
+
         {/* Background Decorative Elements */}
         <div className="bg-blobs">
           <div className="blob blob-1"></div>
@@ -300,7 +336,7 @@ function App() {
                 <Trophy className="htp-icon" />
                 <h3>OBJECTIVE</h3>
               </div>
-              <p>Locate the <span>MASTER KEY</span> hidden at the center. Secure it and reach any <span>EXIT</span> to survive.</p>
+              <p>Secure the <span>MASTER KEY</span> and reach an <span>EXIT</span>, or eliminate all opponents to be the last survivor.</p>
             </div>
             
             <div className="htp-column">
@@ -310,8 +346,8 @@ function App() {
               </div>
               <ul>
                 <li><span>DRAIN</span>: The key carrier siphons health from enemy players over time.</li>
-                <li><span>REWARD</span>: Eliminating opponents restores your HP and weapon range.</li>
-                <li><span>ZONE</span>: The safe zone is shrinking. Stay inside or perish.</li>
+                <li><span>REWARD</span>: Eliminating opponents restores HP and boosts weapon range.</li>
+                <li><span>ZONE</span>: The safe zone shrinks continuously until the key is secured.</li>
               </ul>
             </div>
             

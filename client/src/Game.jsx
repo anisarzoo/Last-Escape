@@ -597,7 +597,11 @@ const Game = ({ roomData, playerName }) => {
     socket.on('player-moved', ({ id, x, y }) => {
       if (id === socket.id) {
         const dist = Math.sqrt((posRef.current.x - x)**2 + (posRef.current.y - y)**2);
-        if (dist > 50) posRef.current = { x, y };
+        // Increase threshold to 150 and disable snapping during/immediately after dash
+        const isRecentlyDashed = Date.now() - dashTimeRef.current < 500;
+        if (dist > 150 && !isRecentlyDashed) {
+          posRef.current = { x, y };
+        }
       }
     });
 

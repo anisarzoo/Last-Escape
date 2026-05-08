@@ -748,33 +748,63 @@ const Game = ({ roomData, playerName }) => {
         if(gameState && !isSpectating){
           const lp = gameState.players.find(p=>p.id===socket.id);
           if(lp){
-            const hW=280, hH=100; ctx.save(); ctx.translate(24, height-hH-24); drawPanel(0,0,hW,hH);
-            ctx.fillStyle='#fff'; ctx.font='900 14px Outfit'; ctx.fillText(`ROOM: ${roomData.id}`, 20, 30);
-            ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(20,45,hW-40,10);
-            ctx.fillStyle=lp.hp>30?'#10b981':'#f43f5e'; ctx.fillRect(20,45,(lp.hp/100)*(hW-40),10);
-            ctx.fillStyle='#94a3b8'; ctx.font='700 12px Outfit'; ctx.fillText(`KILLS: ${lp.score}`, 20, 80); ctx.fillText(`RANGE: ${lp.range} TILE`, 120, 80); ctx.fillText(`HP: ${Math.ceil(lp.hp)}`, 220, 80);
+            const hW=320, hH=120; ctx.save(); ctx.translate(32, height-hH-32); 
             
-            // Dash Cooldown in HUD
+            // HUD Background with glass effect
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+            ctx.beginPath(); ctx.roundRect(0,0,hW,hH,24); ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
+            
+            // Glow border
+            ctx.strokeStyle = lp.hp > 30 ? 'rgba(99, 102, 241, 0.2)' : 'rgba(244, 63, 94, 0.2)';
+            ctx.lineWidth = 4; ctx.stroke();
+
+            // Player Name & Room
+            ctx.fillStyle='#fff'; ctx.font='900 16px Outfit'; ctx.textAlign = 'left';
+            ctx.fillText(lp.name.toUpperCase(), 24, 35);
+            ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='700 10px Outfit';
+            ctx.fillText(`SECTOR: ${roomData.id}`, 24, 52);
+
+            // Health Bar
+            const barW = hW - 48, barH = 12;
+            ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.beginPath(); ctx.roundRect(24,65,barW,barH,6); ctx.fill();
+            
+            const hpWidth = (lp.hp/100)*barW;
+            const hpGrad = ctx.createLinearGradient(24,0,24+barW,0);
+            if (lp.hp > 30) {
+              hpGrad.addColorStop(0, '#10b981'); hpGrad.addColorStop(1, '#34d399');
+            } else {
+              hpGrad.addColorStop(0, '#f43f5e'); hpGrad.addColorStop(1, '#fb7185');
+            }
+            ctx.fillStyle = hpGrad;
+            ctx.beginPath(); ctx.roundRect(24,65,Math.max(0, hpWidth),barH,6); ctx.fill();
+
+            // Stats
+            ctx.fillStyle='#94a3b8'; ctx.font='800 11px Outfit';
+            ctx.fillText(`KILLS: ${lp.score}`, 24, 100); 
+            ctx.fillText(`RANGE: ${lp.range}T`, 100, 100); 
+            ctx.fillText(`HP: ${Math.ceil(lp.hp)}%`, 175, 100);
+            
+            // Dash Indicator
             const dashCD = Math.max(0, 3000 - (Date.now() - dashCooldownRef.current));
-            if (dashCD > 0) {
-              ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
-              ctx.fillRect(20, 90, hW - 40, 4);
-              ctx.fillStyle = '#6366f1';
-              ctx.fillRect(20, 90, (1 - dashCD / 3000) * (hW - 40), 4);
+            ctx.fillStyle = dashCD > 0 ? 'rgba(255,255,255,0.1)' : 'rgba(99, 102, 241, 0.2)';
+            ctx.beginPath(); ctx.roundRect(230, 88, 65, 18, 9); ctx.fill();
+            if (dashCD === 0) {
+              ctx.fillStyle = '#6366f1'; ctx.font = '900 9px Outfit'; ctx.textAlign = 'center';
+              ctx.fillText('DASH READY', 262.5, 100.5);
+            } else {
+              ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '900 9px Outfit'; ctx.textAlign = 'center';
+              ctx.fillText(`${(dashCD/1000).toFixed(1)}s`, 262.5, 100.5);
+              // Fill progress
+              ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2;
+              ctx.beginPath(); ctx.arc(288, 97, 5, -Math.PI/2, -Math.PI/2 + (1 - dashCD/3000) * Math.PI*2); ctx.stroke();
             }
             ctx.restore();
           }
         }
 
-
-
-
         if(gameOver){
-          ctx.fillStyle='rgba(2,6,23,0.9)'; ctx.fillRect(0,0,width,height);
-          ctx.fillStyle='#fff'; ctx.font='900 64px Outfit'; ctx.textAlign='center';
-          ctx.fillText('MATCH TERMINATED', width/2, height/2-20);
-          ctx.font='700 32px Outfit'; ctx.fillStyle='#10b981'; ctx.fillText(`WINNER: ${gameOver.winner.toUpperCase()}`, width/2, height/2+40);
-          ctx.font='400 18px Outfit'; ctx.fillStyle='#94a3b8'; ctx.fillText('REFRESH TO RE-INITIALIZE', width/2, height/2+100);
+          // Handled by React overlay now
         }
       }
 
@@ -793,24 +823,15 @@ const Game = ({ roomData, playerName }) => {
     socket.on('game-state', (state) => {
       setGameState(state);
       
-      // Sync local bullets with server state
       const serverBulletIds = new Set(state.bullets.map(b => b.id));
-      
-      // Remove dead bullets
       localBulletsRef.current = localBulletsRef.current.filter(b => serverBulletIds.has(b.id));
       
-      // Update/Add bullets
       state.bullets.forEach(sb => {
         const lb = localBulletsRef.current.find(b => b.id === sb.id);
         if (lb) {
-          // Snap to server if too far, otherwise keep local for smoothness
           const dist = Math.sqrt((lb.x - sb.x)**2 + (lb.y - sb.y)**2);
-          if (dist > 30) {
-            lb.x = sb.x;
-            lb.y = sb.y;
-          }
-          lb.vx = sb.vx;
-          lb.vy = sb.vy;
+          if (dist > 30) { lb.x = sb.x; lb.y = sb.y; }
+          lb.vx = sb.vx; lb.vy = sb.vy;
         } else {
           localBulletsRef.current.push({ ...sb });
         }
@@ -839,11 +860,15 @@ const Game = ({ roomData, playerName }) => {
       {isEliminated && !isSpectating && !gameOver && (
         <div className="elimination-overlay">
           <div className="overlay-content">
-            <h1 className="glitch-text">YOU GOT ELIMINATED</h1>
-            <p>Killed by: {localPlayer.killedBy === 'ZONE' ? 'THE ZONE' : (gameState?.players.find(p=>p.id===localPlayer.killedBy)?.name || 'Unknown Agent')}</p>
+            <h1 className="glitch-text">TERMINATED</h1>
+            <p style={{color: 'var(--text-dim)', marginBottom: '2rem'}}>
+              Killed by: <span style={{color: 'var(--danger)', fontWeight: 800}}>
+                {localPlayer.killedBy === 'ZONE' ? 'THE DEADLY ZONE' : (gameState?.players.find(p=>p.id===localPlayer.killedBy)?.name.toUpperCase() || 'UNKNOWN AGENT')}
+              </span>
+            </p>
             <div className="overlay-buttons">
               <button onClick={() => setIsSpectating(true)}>SPECTATE KILLER</button>
-              <button onClick={() => window.location.reload()}>EXIT TO MENU</button>
+              <button onClick={() => window.location.reload()}>RETURN TO MENU</button>
             </div>
           </div>
         </div>
@@ -852,16 +877,19 @@ const Game = ({ roomData, playerName }) => {
       {/* Spectate Label */}
       {isSpectating && !gameOver && (
         <div className="spectate-label">
-          SPECTATING: {
-            (() => {
-              let sId = localPlayer?.killedBy;
-              let target = gameState?.players.find(p => p.id === sId);
-              while (target && target.hp <= 0 && target.killedBy && target.killedBy !== 'ZONE') {
-                target = gameState?.players.find(p => p.id === target.killedBy);
-              }
-              return target ? target.name.toUpperCase() : 'MAP OVERVIEW';
-            })()
-          }
+          <span style={{opacity: 0.6, fontSize: '0.8rem'}}>WATCHING</span>
+          <span style={{color: 'var(--accent)'}}>
+            {
+              (() => {
+                let sId = localPlayer?.killedBy;
+                let target = gameState?.players.find(p => p.id === sId);
+                while (target && target.hp <= 0 && target.killedBy && target.killedBy !== 'ZONE') {
+                  target = gameState?.players.find(p => p.id === target.killedBy);
+                }
+                return target ? target.name.toUpperCase() : 'BATTLEFIELD';
+              })()
+            }
+          </span>
           <button className="spectate-exit-btn" onClick={() => window.location.reload()}>EXIT</button>
         </div>
       )}
@@ -870,8 +898,10 @@ const Game = ({ roomData, playerName }) => {
       {gameOver && (
         <div className="elimination-overlay game-over">
           <div className="overlay-content summary-box">
-            <h1 className="winner-text">MISSION ACCOMPLISHED</h1>
-            <p className="winner-name">WINNER: {gameOver.winner.toUpperCase()}</p>
+            <h1 className="winner-text" style={{fontSize: '3rem'}}>MISSION END</h1>
+            <p className="winner-name" style={{fontSize: '1.5rem', marginBottom: '2rem'}}>
+              WINNER: <span style={{color: 'var(--accent)'}}>{gameOver.winner.toUpperCase()}</span>
+            </p>
             
             <div className="match-stats">
               <table>
@@ -895,7 +925,7 @@ const Game = ({ roomData, playerName }) => {
             </div>
 
             <div className="overlay-buttons">
-              <button onClick={() => window.location.reload()}>REDEPLOY</button>
+              <button onClick={() => window.location.reload()}>REDEPLOY AGENT</button>
             </div>
           </div>
         </div>
@@ -905,3 +935,4 @@ const Game = ({ roomData, playerName }) => {
 };
 
 export default Game;
+

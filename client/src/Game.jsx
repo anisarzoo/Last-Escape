@@ -184,6 +184,8 @@ const Game = ({ roomData }) => {
     aim: { active: false, x: 0, y: 0 } 
   });
   const mobileShootRef = useRef(false);
+  const shootTouchIdRef = useRef(null);
+  const shootTouchStartRef = useRef({ x: 0, y: 0 });
 
   const prevPlayersRef = useRef({});
   const localPlayer = gameState?.players.find((p) => p.id === socket.id);
@@ -740,6 +742,16 @@ const Game = ({ roomData }) => {
         aimJoystickRef.current.curY = aimJoystickRef.current.startY + Math.sin(angle) * dist;
         setJoystickUI(prev => ({ ...prev, aim: { ...prev.aim, curX: aimJoystickRef.current.curX, curY: aimJoystickRef.current.curY } }));
       }
+
+      if (shootTouchIdRef.current === identifier) {
+        const dx = clientX - shootTouchStartRef.current.x;
+        const dy = clientY - shootTouchStartRef.current.y;
+        if (Math.sqrt(dx*dx + dy*dy) > 10) {
+          aimJoystickRef.current.active = true;
+          aimJoystickRef.current.x = dx;
+          aimJoystickRef.current.y = dy;
+        }
+      }
     }
   };
 
@@ -759,6 +771,10 @@ const Game = ({ roomData }) => {
         aimJoystickRef.current.y = 0;
         setJoystickUI(prev => ({ ...prev, aim: { active: false, x: 0, y: 0 } }));
       }
+      if (shootTouchIdRef.current === identifier) {
+        shootTouchIdRef.current = null;
+        if (!aimJoystickRef.current.id) aimJoystickRef.current.active = false;
+      }
     }
   };
 
@@ -766,6 +782,11 @@ const Game = ({ roomData }) => {
     e.stopPropagation();
     initAudio();
     mobileShootRef.current = true;
+    
+    const touch = e.changedTouches[0];
+    shootTouchIdRef.current = touch.identifier;
+    shootTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
+
     // Immediate first shot
     const now = Date.now();
     if (now - shootCooldownRef.current > 500) {
@@ -778,6 +799,9 @@ const Game = ({ roomData }) => {
   const handleMobileShootEnd = (e) => {
     e.stopPropagation();
     mobileShootRef.current = false;
+    shootTouchIdRef.current = null;
+    // Don't deactivate aim if the other joystick is active
+    if (!aimJoystickRef.current.id) aimJoystickRef.current.active = false;
   };
 
   const handleMobileDash = (e) => {

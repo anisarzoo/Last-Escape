@@ -734,16 +734,6 @@ const Game = ({ roomData, playerName }) => {
     >
       <canvas ref={canvasRef} style={{ display: 'block' }} />
 
-      {isMobile && isPortrait && (
-        <div className="portrait-lock-overlay">
-          <div className="lock-content">
-            <Activity size={48} className="rotate-icon" />
-            <h2>LANDSCAPE REQUIRED</h2>
-            <p>Please rotate your device for the best tactical experience.</p>
-          </div>
-        </div>
-      )}
-
       {isMobile && !isPortrait && !gameOver && (
         <div className="mobile-controls-layer">
           <div className="mobile-action-buttons">

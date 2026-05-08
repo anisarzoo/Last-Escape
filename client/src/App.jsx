@@ -78,6 +78,30 @@ function App() {
           <div className="blob blob-3"></div>
         </div>
 
+        {/* Global Landscape Lock Overlay */}
+        <div className="landscape-lock">
+          <div className="rotate-device-animation">
+            <div className="phone"></div>
+          </div>
+          <h2>Landscape Required</h2>
+          <p>Please rotate your screen to play Last Escape</p>
+          <button 
+            className="landscape-request-btn"
+            onClick={() => {
+              try {
+                if (document.documentElement.requestFullscreen) {
+                  document.documentElement.requestFullscreen();
+                }
+                if (window.screen.orientation && window.screen.orientation.lock) {
+                  window.screen.orientation.lock('landscape').catch(() => {});
+                }
+              } catch (e) {}
+            }}
+          >
+            Enter Landscape
+          </button>
+        </div>
+
         <h1>LAST ESCAPE</h1>
         
         <div className="lobby-content-grid">
@@ -180,6 +204,14 @@ function App() {
 
   return (
     <div className="game-wrapper">
+      {/* Global Landscape Lock Overlay */}
+      <div className="landscape-lock">
+        <div className="rotate-device-animation">
+          <div className="phone"></div>
+        </div>
+        <h2>Landscape Required</h2>
+        <p>Please rotate your screen to play Last Escape</p>
+      </div>
       <Game roomData={roomData} playerName={playerName} />
     </div>
   );

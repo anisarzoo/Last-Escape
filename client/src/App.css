@@ -114,6 +114,7 @@ h1 {
   margin: 0 0 3rem 0;
   background: linear-gradient(to bottom, #fff 40%, #64748b 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   text-transform: uppercase;
   letter-spacing: 0.5rem;
@@ -945,38 +946,90 @@ button:disabled {
 }
 
 /* Portrait Lock Overlay */
-.portrait-lock-overlay {
+.landscape-lock {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: var(--bg-dark);
+  background: #0f172a;
   z-index: 9999;
-  display: flex;
-  justify-content: center;
+  display: none;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
   padding: 2rem;
+  color: white;
 }
 
-.lock-content h2 {
-  font-family: 'Syncopate', sans-serif;
-  margin-top: 2rem;
-  color: var(--primary);
+.landscape-lock h2 {
+  font-size: 1.8rem;
+  margin: 1.5rem 0 0.5rem;
+  letter-spacing: 0.1rem;
 }
 
-.lock-content p {
-  color: var(--text-dim);
-  font-weight: 500;
+.landscape-lock p {
+  opacity: 0.7;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
 }
 
-.rotate-icon {
-  color: var(--primary);
-  animation: rotate-device 2s infinite ease-in-out;
+@media (orientation: portrait) and (max-width: 1024px) {
+  .landscape-lock { display: flex; }
 }
 
-@keyframes rotate-device {
+.rotate-device-animation {
+  width: 120px;
+  height: 120px;
+  position: relative;
+}
+
+.rotate-device-animation .phone {
+  width: 50px;
+  height: 90px;
+  border: 3px solid white;
+  border-radius: 8px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -45px;
+  margin-left: -25px;
+  animation: rotate-phone 2s infinite ease-in-out;
+}
+
+.rotate-device-animation .phone::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  margin-left: -4px;
+}
+
+@keyframes rotate-phone {
   0% { transform: rotate(0deg); }
-  50% { transform: rotate(90deg); }
+  30% { transform: rotate(90deg); }
+  70% { transform: rotate(90deg); }
   100% { transform: rotate(0deg); }
+}
+
+.landscape-request-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.landscape-request-btn:hover {
+  transform: translateY(-2px);
+  background: var(--accent);
 }
 .kill-entry {
   background: rgba(15, 23, 42, 0.4);

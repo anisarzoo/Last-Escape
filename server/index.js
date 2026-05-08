@@ -162,6 +162,10 @@ function getWinnerLabel(room, carrier) {
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
+  socket.on('ping', (callback) => {
+    if (typeof callback === 'function') callback();
+  });
+
   socket.on('join-room', ({ roomId, playerName, create, mode }) => {
     // 1. Validation
     if (!rooms[roomId] && !create) {

@@ -158,6 +158,20 @@ const Game = ({ roomData }) => {
   const aimAngleRef = useRef(0);
   const [gameState, setGameState] = useState(null);
   const [gameOver, setGameOver] = useState(null);
+  const [ping, setPing] = useState(0);
+
+  // Ping measurement
+  useEffect(() => {
+    if (!socket) return;
+    const interval = setInterval(() => {
+      const start = Date.now();
+      // Socket.io standard ping/pong or manual ack
+      socket.emit('ping', () => {
+        setPing(Date.now() - start);
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [socket]);
   const [isSpectating, setIsSpectating] = useState(false);
   const [spectateTargetId, setSpectateTargetId] = useState(null);
   const [dashCDRemaining, setDashCDRemaining] = useState(0);
@@ -1116,6 +1130,13 @@ const Game = ({ roomData }) => {
               <button onClick={() => window.location.reload()}>REDEPLOY AGENT</button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Connection Status */}
+      {!isEliminated && (
+        <div className="connection-status">
+          <div className={`ping-dot ${ping < 100 ? 'good' : ping < 200 ? 'medium' : 'bad'}`} />
+          <span>{ping}ms</span>
         </div>
       )}
     </div>

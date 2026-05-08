@@ -1555,3 +1555,46 @@ button:disabled {
     font-size: 0.8rem;
   }
 }
+
+/* Connection Status HUD */
+.connection-status {
+  position: absolute;
+  bottom: 2rem;
+  left: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  padding: 0.5rem 1rem;
+  border-radius: 100px;
+  border: 1px solid var(--glass-border);
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05rem;
+  pointer-events: none;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.ping-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.ping-dot.good { color: var(--accent); background: var(--accent); }
+.ping-dot.medium { color: #f59e0b; background: #f59e0b; }
+.ping-dot.bad { color: var(--danger); background: var(--danger); }
+
+@media (max-width: 900px) {
+  .connection-status {
+    bottom: 1rem;
+    left: 1rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.65rem;
+  }
+}
+

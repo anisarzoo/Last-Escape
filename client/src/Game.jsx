@@ -126,6 +126,18 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.start(now);
     osc.stop(now + 0.1);
   }
+  else if (type === 'dash-hit') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(100, now);
+    osc.frequency.exponentialRampToValueAtTime(300, now + 0.2);
+    
+    osc.connect(gain);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }
 };
 
 const drawKey = (ctx, x, y, pulse) => {
@@ -219,6 +231,10 @@ const Game = ({ roomData, playerName }) => {
       if (data.type === 'dash') createParticles(data.x, data.y, '#6366f1', 15, 3);
       if (data.type === 'zone-removed') createParticles(data.x, data.y, '#f43f5e', 30, 8, 2);
       if (data.type === 'ricochet') createParticles(data.x, data.y, '#fff', 6, 2, 0.3);
+      if (data.type === 'dash-hit') {
+        createParticles(data.x, data.y, '#a855f7', 20, 6, 0.8);
+        setScreenShake(Date.now());
+      }
     };
     socket.on('play-sound', handleSound);
 
@@ -305,6 +321,7 @@ const Game = ({ roomData, playerName }) => {
         if (keys['Shift'] && now - dashCooldownRef.current > 3000 && !isDashing) {
           dashTimeRef.current = now;
           dashCooldownRef.current = now;
+          socket.emit('player-dash');
           socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
         }
 

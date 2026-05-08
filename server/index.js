@@ -67,7 +67,9 @@ io.on('connection', (socket) => {
       isHost: rooms[roomId].hostId === socket.id,
       lastShotTime: 0,
       aimAngle: 0,
-      totalKeyHoldTime: 0
+      totalKeyHoldTime: 0,
+      lastDashTime: 0,
+      isDashing: false
     };
 
     rooms[roomId].players.push(socket.id);
@@ -123,6 +125,31 @@ io.on('connection', (socket) => {
         player.y = movement.y;
       }
       
+      // Dash Collision Check
+      if (player.isDashing) {
+        for (const pId of room.players) {
+          if (pId === socket.id) continue;
+          const target = players[pId];
+          if (!target || target.hp <= 0) continue;
+
+          const dist = Math.sqrt((player.x - target.x)**2 + (player.y - target.y)**2);
+          if (dist < 40) { // Collision radius
+            target.hp -= 10;
+            const angle = Math.atan2(target.y - player.y, target.x - player.x);
+            const kx = Math.cos(angle) * 25;
+            const ky = Math.sin(angle) * 25;
+            target.x += kx;
+            target.y += ky;
+            
+            io.to(player.roomId).emit('player-knockback', { id: pId, x: target.x, y: target.y, vx: kx, vy: ky });
+            io.to(player.roomId).emit('play-sound', { x: target.x, y: target.y, type: 'dash-hit' });
+            
+            player.isDashing = false; // End dash on hit
+            break;
+          }
+        }
+      }
+      
       // Always update aimAngle if provided
       if (movement.aimAngle !== undefined) {
         player.aimAngle = movement.aimAngle;
@@ -134,6 +161,17 @@ io.on('connection', (socket) => {
         y: player.y, 
         aimAngle: player.aimAngle 
       });
+    }
+  });
+
+  socket.on('player-dash', () => {
+    const player = players[socket.id];
+    if (player && Date.now() - player.lastDashTime > 3000) {
+      player.lastDashTime = Date.now();
+      player.isDashing = true;
+      setTimeout(() => {
+        if (players[socket.id]) players[socket.id].isDashing = false;
+      }, 300);
     }
   });
 

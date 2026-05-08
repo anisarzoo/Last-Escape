@@ -297,11 +297,11 @@ h1 {
 .lobby-content-grid {
   display: flex;
   flex-direction: row-reverse;
-  gap: 2rem;
+  gap: 2.5rem;
   align-items: stretch;
   z-index: 2;
-  max-width: 1100px;
-  width: 100%;
+  max-width: 1250px;
+  width: 95%;
   justify-content: center;
   animation: content-entry 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
@@ -562,7 +562,7 @@ button:disabled {
   flex-direction: column;
   gap: 1rem;
   flex-grow: 1;
-  max-width: 500px;
+  max-width: 700px;
 }
 
 .htp-column {

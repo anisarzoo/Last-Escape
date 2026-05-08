@@ -1099,7 +1099,17 @@ button:disabled {
   box-shadow: 0 0 20px var(--primary-glow);
 }
 
-.mobile-action-buttons {
+.joystick-base.firing {
+  border-color: rgba(244, 63, 94, 0.4);
+  background: rgba(244, 63, 94, 0.05);
+}
+
+.joystick-base.firing .joystick-knob {
+  background: var(--danger) !important;
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.6) !important;
+}
+
+.mobile-controls.right {
   position: absolute;
   bottom: 2rem;
   right: 2rem;
@@ -1136,15 +1146,7 @@ button:disabled {
   width: 60px;
   height: 60px;
   border-color: var(--primary-glow);
-}
-
-.shoot-btn {
-  border-color: var(--danger);
-  box-shadow: 0 0 20px rgba(244, 63, 94, 0.2);
-}
-
-.shoot-btn:active {
-  background: var(--danger);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
 }
 
 /* Portrait Lock Overlay */

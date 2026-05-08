@@ -181,7 +181,7 @@ const Game = ({ roomData }) => {
   const aimJoystickRef = useRef({ active: false, x: 0, y: 0, startX: 0, startY: 0, curX: 0, curY: 0 });
   const [joystickUI, setJoystickUI] = useState({ 
     move: { active: false, x: 0, y: 0 }, 
-    aim: { active: false, x: 0, y: 0 } 
+    aim: { active: false, x: 0, y: 0, isFiring: false } 
   });
   const mobileShootRef = useRef(false);
   const shootTouchIdRef = useRef(null);
@@ -703,11 +703,25 @@ const Game = ({ roomData }) => {
           setJoystickUI(prev => ({ ...prev, move: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY } }));
         }
       } 
-      // Right half = aiming
+      // Right half = Floating Fire & Aiming
       else {
-        if (!aimJoystickRef.current.active) {
+        if (!mobileShootRef.current) {
+          mobileShootRef.current = true;
+          shootTouchIdRef.current = touch.identifier;
+          shootTouchStartRef.current = { x: clientX, y: clientY };
+          
+          // Re-use aim joystick state for visual feedback
           aimJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
-          setJoystickUI(prev => ({ ...prev, aim: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY } }));
+          setJoystickUI(prev => ({ ...prev, aim: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY, isFiring: true } }));
+
+          // Immediate first shot
+          const now = Date.now();
+          if (now - shootCooldownRef.current > 500) {
+            initAudio();
+            socket.emit('player-shoot');
+            setMuzzleFlash(now);
+            shootCooldownRef.current = now;
+          }
         }
       }
     }
@@ -742,16 +756,6 @@ const Game = ({ roomData }) => {
         aimJoystickRef.current.curY = aimJoystickRef.current.startY + Math.sin(angle) * dist;
         setJoystickUI(prev => ({ ...prev, aim: { ...prev.aim, curX: aimJoystickRef.current.curX, curY: aimJoystickRef.current.curY } }));
       }
-
-      if (shootTouchIdRef.current === identifier) {
-        const dx = clientX - shootTouchStartRef.current.x;
-        const dy = clientY - shootTouchStartRef.current.y;
-        if (Math.sqrt(dx*dx + dy*dy) > 10) {
-          aimJoystickRef.current.active = true;
-          aimJoystickRef.current.x = dx;
-          aimJoystickRef.current.y = dy;
-        }
-      }
     }
   };
 
@@ -767,42 +771,17 @@ const Game = ({ roomData }) => {
       }
       if (aimJoystickRef.current.id === identifier) {
         aimJoystickRef.current.active = false;
+        aimJoystickRef.current.id = null;
         aimJoystickRef.current.x = 0;
         aimJoystickRef.current.y = 0;
-        setJoystickUI(prev => ({ ...prev, aim: { active: false, x: 0, y: 0 } }));
-      }
-      if (shootTouchIdRef.current === identifier) {
+        setJoystickUI(prev => ({ ...prev, aim: { active: false, x: 0, y: 0, isFiring: false } }));
+        mobileShootRef.current = false;
         shootTouchIdRef.current = null;
-        if (!aimJoystickRef.current.id) aimJoystickRef.current.active = false;
       }
     }
   };
 
-  const handleMobileShootStart = (e) => {
-    e.stopPropagation();
-    initAudio();
-    mobileShootRef.current = true;
-    
-    const touch = e.changedTouches[0];
-    shootTouchIdRef.current = touch.identifier;
-    shootTouchStartRef.current = { x: touch.clientX, y: touch.clientY };
-
-    // Immediate first shot
-    const now = Date.now();
-    if (now - shootCooldownRef.current > 500) {
-      socket.emit('player-shoot');
-      setMuzzleFlash(now);
-      shootCooldownRef.current = now;
-    }
-  };
-
-  const handleMobileShootEnd = (e) => {
-    e.stopPropagation();
-    mobileShootRef.current = false;
-    shootTouchIdRef.current = null;
-    // Don't deactivate aim if the other joystick is active
-    if (!aimJoystickRef.current.id) aimJoystickRef.current.active = false;
-  };
+  // Removed handleMobileShootStart/End as fire is now integrated into Floating Joystick
 
   const handleMobileDash = (e) => {
     e.stopPropagation();
@@ -844,17 +823,9 @@ const Game = ({ roomData }) => {
 
       {isMobile && !isPortrait && !gameOver && (
         <div className="mobile-controls-layer">
-          <div className="mobile-action-buttons">
+          <div className="mobile-controls right">
             <button className="mobile-btn dash-btn" onTouchStart={handleMobileDash}>
               <Wind size={24} />
-            </button>
-            <button 
-              className="mobile-btn shoot-btn" 
-              onTouchStart={handleMobileShootStart}
-              onTouchEnd={handleMobileShootEnd}
-              onTouchCancel={handleMobileShootEnd}
-            >
-              <Target size={32} />
             </button>
           </div>
 
@@ -865,8 +836,17 @@ const Game = ({ roomData }) => {
           )}
 
           {joystickUI.aim.active && (
-            <div className="joystick-base" style={{ left: joystickUI.aim.x, top: joystickUI.aim.y }}>
-              <div className="joystick-knob" style={{ transform: `translate(${joystickUI.aim.curX - joystickUI.aim.x}px, ${joystickUI.aim.curY - joystickUI.aim.y}px)` }} />
+            <div 
+              className={`joystick-base ${joystickUI.aim.isFiring ? 'firing' : ''}`}
+              style={{ left: joystickUI.aim.x, top: joystickUI.aim.y }}
+            >
+              <div 
+                className="joystick-knob"
+                style={{ 
+                  left: 30 + (joystickUI.aim.curX - joystickUI.aim.x), 
+                  top: 30 + (joystickUI.aim.curY - joystickUI.aim.y) 
+                }}
+              />
             </div>
           )}
         </div>

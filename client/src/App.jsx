@@ -15,13 +15,20 @@ import './App.css';
 
 function App() {
   const [isConnected, setIsConnected] = useState(socket.connected);
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(() => localStorage.getItem('lastEscape_playerName') || '');
   const [roomId, setRoomId] = useState('');
   const [isJoined, setIsJoined] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [roomData, setRoomData] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
   const [error, setError] = useState('');
+
+  // Persist player name
+  useEffect(() => {
+    if (playerName) {
+      localStorage.setItem('lastEscape_playerName', playerName);
+    }
+  }, [playerName]);
 
   useEffect(() => {
     function onRoomUpdate(data) {

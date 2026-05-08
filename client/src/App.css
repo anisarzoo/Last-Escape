@@ -1425,6 +1425,19 @@ button:disabled {
   transform: translateY(-2px);
   background: var(--accent);
 }
+
+.rotate-hint-mobile {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+  animation: pulse 2s infinite;
+}
 .kill-entry {
   background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(10px);

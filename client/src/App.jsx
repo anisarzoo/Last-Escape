@@ -204,23 +204,27 @@ function App() {
           </div>
           <h2>Landscape Required</h2>
           <p>Please rotate your screen to play Last Escape</p>
-          <button 
-            className="landscape-request-btn"
-            onClick={() => {
-              try {
-                if (document.documentElement.requestFullscreen) {
-                  document.documentElement.requestFullscreen();
+          {window.screen.orientation && window.screen.orientation.lock ? (
+            <button 
+              className="landscape-request-btn"
+              onClick={() => {
+                try {
+                  if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                  }
+                  if (window.screen.orientation && window.screen.orientation.lock) {
+                    window.screen.orientation.lock('landscape').catch(() => {});
+                  }
+                } catch {
+                  // Ignore fullscreen/orientation API failures on unsupported devices.
                 }
-                if (window.screen.orientation && window.screen.orientation.lock) {
-                  window.screen.orientation.lock('landscape').catch(() => {});
-                }
-              } catch {
-                // Ignore fullscreen/orientation API failures on unsupported devices.
-              }
-            }}
-          >
-            Enter Landscape
-          </button>
+              }}
+            >
+              Enter Landscape
+            </button>
+          ) : (
+            <div className="rotate-hint-mobile">Please rotate your device manually</div>
+          )}
         </div>
 
         <h1>LAST ESCAPE</h1>
@@ -396,23 +400,27 @@ function App() {
         </div>
         <h2>Landscape Required</h2>
         <p>Please rotate your screen to play Last Escape</p>
-        <button 
-          className="landscape-request-btn"
-          onClick={() => {
-            try {
-              if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen();
+        {window.screen.orientation && window.screen.orientation.lock ? (
+          <button 
+            className="landscape-request-btn"
+            onClick={() => {
+              try {
+                if (document.documentElement.requestFullscreen) {
+                  document.documentElement.requestFullscreen();
+                }
+                if (window.screen.orientation && window.screen.orientation.lock) {
+                  window.screen.orientation.lock('landscape').catch(() => {});
+                }
+              } catch {
+                // Ignore fullscreen/orientation API failures on unsupported devices.
               }
-              if (window.screen.orientation && window.screen.orientation.lock) {
-                window.screen.orientation.lock('landscape').catch(() => {});
-              }
-            } catch {
-              // Ignore fullscreen/orientation API failures on unsupported devices.
-            }
-          }}
-        >
-          Enter Landscape
-        </button>
+            }}
+          >
+            Enter Landscape
+          </button>
+        ) : (
+          <div className="rotate-hint-mobile">Please rotate your device manually</div>
+        )}
       </div>
       <Game roomData={roomData} playerName={playerName} />
     </div>

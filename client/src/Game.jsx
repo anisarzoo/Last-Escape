@@ -489,9 +489,26 @@ const Game = ({ roomData, playerName }) => {
             targetX = targetPlayer.x;
             targetY = targetPlayer.y;
           } else {
-            // Default to map center if everyone is dead or killed by zone
-            targetX = MAZE_WIDTH / 2;
-            targetY = MAZE_HEIGHT / 2;
+            // Find closest living player to death location
+            let closest = null;
+            let minDist = Infinity;
+            gameState.players.forEach(p => {
+              if (p.hp > 0 && p.id !== socket.id) {
+                const d = Math.sqrt((posRef.current.x - p.x)**2 + (posRef.current.y - p.y)**2);
+                if (d < minDist) {
+                  minDist = d;
+                  closest = p;
+                }
+              }
+            });
+
+            if (closest) {
+              targetX = closest.x;
+              targetY = closest.y;
+            } else {
+              targetX = MAZE_WIDTH / 2;
+              targetY = MAZE_HEIGHT / 2;
+            }
           }
         }
 

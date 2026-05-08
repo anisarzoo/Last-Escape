@@ -21,23 +21,34 @@ function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [roomData, setRoomData] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     function onRoomUpdate(data) {
       setRoomData(data);
       setRoomId(data.id);
+      setIsJoined(true);
+      setError('');
     }
 
     function onGameStarted() {
       setGameStarted(true);
     }
 
+    function onError(err) {
+      setError(err.message);
+      setIsJoined(false);
+      setTimeout(() => setError(''), 4000);
+    }
+
     socket.on('room-update', onRoomUpdate);
     socket.on('game-started', onGameStarted);
+    socket.on('error', onError);
 
     return () => {
       socket.off('room-update', onRoomUpdate);
       socket.off('game-started', onGameStarted);
+      socket.off('error', onError);
     };
   }, []);
 
@@ -45,16 +56,14 @@ function App() {
     if (playerName) {
       const newRoomId = Math.random().toString(36).substr(2, 6).toUpperCase();
       socket.connect();
-      socket.emit('join-room', { roomId: newRoomId, playerName });
-      setIsJoined(true);
+      socket.emit('join-room', { roomId: newRoomId, playerName, create: true });
     }
   };
 
   const handleJoin = () => {
     if (playerName && roomId) {
       socket.connect();
-      socket.emit('join-room', { roomId, playerName });
-      setIsJoined(true);
+      socket.emit('join-room', { roomId, playerName, create: false });
     }
   };
 
@@ -108,6 +117,7 @@ function App() {
           {!isJoined ? (
             <div className="login-box">
               <h2>Join the Maze</h2>
+              {error && <div className="error-message">{error}</div>}
               <input
                 type="text"
                 placeholder="Your Nickname"

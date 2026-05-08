@@ -52,7 +52,24 @@ function moveSafely(p, dx, dy) {
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('join-room', ({ roomId, playerName }) => {
+  socket.on('join-room', ({ roomId, playerName, create }) => {
+    // 1. Validation
+    if (!rooms[roomId] && !create) {
+      socket.emit('error', { message: 'Invalid Room Code' });
+      return;
+    }
+
+    if (rooms[roomId]) {
+      if (rooms[roomId].gameStarted) {
+        socket.emit('error', { message: 'Game already in progress' });
+        return;
+      }
+      if (rooms[roomId].players.length >= 8) {
+        socket.emit('error', { message: 'Room is full (Max 8 players)' });
+        return;
+      }
+    }
+
     socket.join(roomId);
     
     // Players spawn exactly at the 8 Exit locations
@@ -105,11 +122,6 @@ io.on('connection', (socket) => {
       lastDashTime: 0,
       isDashing: false
     };
-
-    if (rooms[roomId] && rooms[roomId].players.length >= 8) {
-      socket.emit('error', { message: 'Room is full (Max 8 players)' });
-      return;
-    }
 
     rooms[roomId].players.push(socket.id);
     io.to(roomId).emit('room-update', {

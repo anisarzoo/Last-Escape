@@ -183,6 +183,7 @@ const Game = ({ roomData }) => {
     move: { active: false, x: 0, y: 0 }, 
     aim: { active: false, x: 0, y: 0 } 
   });
+  const mobileShootRef = useRef(false);
 
   const prevPlayersRef = useRef({});
   const localPlayer = gameState?.players.find((p) => p.id === socket.id);
@@ -444,7 +445,7 @@ const Game = ({ roomData }) => {
           }
         }
 
-        if (keys[' '] && now - shootCooldownRef.current > 500) {
+        if ((keys[' '] || mobileShootRef.current) && now - shootCooldownRef.current > 500) {
           initAudio();
           socket.emit('player-shoot');
           setMuzzleFlash(now);
@@ -761,14 +762,22 @@ const Game = ({ roomData }) => {
     }
   };
 
-  const handleMobileShoot = (e) => {
+  const handleMobileShootStart = (e) => {
     e.stopPropagation();
     initAudio();
-    if (Date.now() - shootCooldownRef.current > 500) {
+    mobileShootRef.current = true;
+    // Immediate first shot
+    const now = Date.now();
+    if (now - shootCooldownRef.current > 500) {
       socket.emit('player-shoot');
-      setMuzzleFlash(Date.now());
-      shootCooldownRef.current = Date.now();
+      setMuzzleFlash(now);
+      shootCooldownRef.current = now;
     }
+  };
+
+  const handleMobileShootEnd = (e) => {
+    e.stopPropagation();
+    mobileShootRef.current = false;
   };
 
   const handleMobileDash = (e) => {
@@ -815,7 +824,12 @@ const Game = ({ roomData }) => {
             <button className="mobile-btn dash-btn" onTouchStart={handleMobileDash}>
               <Wind size={24} />
             </button>
-            <button className="mobile-btn shoot-btn" onTouchStart={handleMobileShoot}>
+            <button 
+              className="mobile-btn shoot-btn" 
+              onTouchStart={handleMobileShootStart}
+              onTouchEnd={handleMobileShootEnd}
+              onTouchCancel={handleMobileShootEnd}
+            >
               <Target size={32} />
             </button>
           </div>

@@ -445,7 +445,7 @@ const Game = ({ roomData }) => {
         const isExitLocked = gameState?.pickupLockoutRemaining > 0;
 
         let tx = px + dx;
-        if (dy !== 0 && dx === 0) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.15;
+        if (Math.abs(dy) > 0.01 && Math.abs(dx) < 0.2) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.15 * dt;
         let canX = true;
         
         // World Boundary Check (Locked while lockout active)
@@ -462,7 +462,7 @@ const Game = ({ roomData }) => {
         if(canX) px = tx; else velRef.current.x = 0;
 
         let ty = py + dy;
-        if (dx !== 0 && dy === 0) ty += ((Math.floor(py / TILE_SIZE) + 0.5) * TILE_SIZE - py) * 0.15;
+        if (Math.abs(dx) > 0.01 && Math.abs(dy) < 0.2) ty += ((Math.floor(py / TILE_SIZE) + 0.5) * TILE_SIZE - py) * 0.15 * dt;
         let canY = true;
 
         // World Boundary Check (Locked while lockout active)

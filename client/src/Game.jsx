@@ -165,6 +165,7 @@ const Game = ({ roomData }) => {
   const [screenShake, setScreenShake] = useState(0);
   const [killFeed, setKillFeed] = useState([]);
   const keysRef = useRef({});
+  const mousePosRef = useRef({ x: 0, y: 0 });
   const shootCooldownRef = useRef(0);
   const dashCooldownRef = useRef(0);
   const dashTimeRef = useRef(0);
@@ -297,8 +298,25 @@ const Game = ({ roomData }) => {
   useEffect(() => {
     const handleKeyDown = (e) => { keysRef.current[e.key] = true; };
     const handleKeyUp = (e) => { keysRef.current[e.key] = false; };
+    const handleMouseMove = (e) => {
+      mousePosRef.current = { x: e.clientX, y: e.clientY };
+    };
+    const handleMouseDown = (e) => {
+      if (e.button === 0) keysRef.current['MouseLeft'] = true;
+      if (e.button === 2) keysRef.current['MouseRight'] = true;
+    };
+    const handleMouseUp = (e) => {
+      if (e.button === 0) keysRef.current['MouseLeft'] = false;
+      if (e.button === 2) keysRef.current['MouseRight'] = false;
+    };
+    const handleContextMenu = (e) => e.preventDefault();
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('contextmenu', handleContextMenu);
 
     let lastTime = performance.now();
     let loopId;
@@ -314,7 +332,7 @@ const Game = ({ roomData }) => {
             smoothedPlayersRef.current[p.id] = { x: p.x, y: p.y, vx: 0, vy: 0 };
           }
           const sp = smoothedPlayersRef.current[p.id];
-          sp.vx *= 0.88; sp.vy *= 0.88;
+          sp.vx *= Math.pow(0.88, dt); sp.vy *= Math.pow(0.88, dt);
           sp.x += sp.vx * dt; sp.y += sp.vy * dt;
           sp.x += (p.x - sp.x) * 0.2 * dt; // Smoother player interpolation
           sp.y += (p.y - sp.y) * 0.2 * dt;
@@ -359,18 +377,21 @@ const Game = ({ roomData }) => {
           speedMultiplier = 1.25;
         }
 
-        if (keys['Shift'] && now - dashCooldownRef.current > 3000 && !isDashing) {
+        if ((keys['Shift'] || keys['MouseRight']) && now - dashCooldownRef.current > 3000 && !isDashing) {
           dashTimeRef.current = now;
           dashCooldownRef.current = now;
           socket.emit('player-dash');
           socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
+          // Prevent auto-dash when holding the key/button
+          keys['Shift'] = false;
+          keys['MouseRight'] = false;
         }
 
         let inputX = 0, inputY = 0;
-        if (keys['ArrowUp']) inputY -= 1;
-        if (keys['ArrowDown']) inputY += 1;
-        if (keys['ArrowLeft']) inputX -= 1;
-        if (keys['ArrowRight']) inputX += 1;
+        if (keys['ArrowUp'] || keys['w'] || keys['W']) inputY -= 1;
+        if (keys['ArrowDown'] || keys['s'] || keys['S']) inputY += 1;
+        if (keys['ArrowLeft'] || keys['a'] || keys['A']) inputX -= 1;
+        if (keys['ArrowRight'] || keys['d'] || keys['D']) inputX += 1;
 
         // Mobile Move Joystick Input
         if (isMobile && moveJoystickRef.current.active) {
@@ -382,8 +403,9 @@ const Game = ({ roomData }) => {
         const FRICTION = isDashing ? 0.98 : 0.90;
         if (inputX !== 0) velRef.current.x += inputX * ACCEL;
         if (inputY !== 0) velRef.current.y += inputY * ACCEL;
-        velRef.current.x *= FRICTION;
-        velRef.current.y *= FRICTION;
+        const frictionDt = Math.pow(FRICTION, dt);
+        velRef.current.x *= frictionDt;
+        velRef.current.y *= frictionDt;
 
         if (isDashing) {
           const dashMag = 8;
@@ -402,20 +424,22 @@ const Game = ({ roomData }) => {
         }
 
         let targetAngle = aimAngleRef.current;
-        let adx = 0, ady = 0, aimPressed = false;
-        if (keys['w'] || keys['W']) { ady -= 1; aimPressed = true; }
-        if (keys['s'] || keys['S']) { ady += 1; aimPressed = true; }
-        if (keys['a'] || keys['A']) { adx -= 1; aimPressed = true; }
-        if (keys['d'] || keys['D']) { adx += 1; aimPressed = true; }
-
-        if (aimPressed) targetAngle = Math.atan2(ady, adx);
-        else if (isMobile && aimJoystickRef.current.active) {
-          targetAngle = Math.atan2(aimJoystickRef.current.y, aimJoystickRef.current.x);
+        if (isMobile) {
+          if (aimJoystickRef.current.active) {
+            targetAngle = Math.atan2(aimJoystickRef.current.y, aimJoystickRef.current.x);
+          }
+          else if (inputX !== 0 || inputY !== 0) targetAngle = Math.atan2(inputY, inputX);
+        } else {
+          // Mouse Aiming for Desktop
+          const camX = dimensions.width / 2 - smoothedCameraRef.current.x;
+          const camY = dimensions.height / 2 - smoothedCameraRef.current.y;
+          const playerScreenX = posRef.current.x + camX;
+          const playerScreenY = posRef.current.y + camY;
+          targetAngle = Math.atan2(mousePosRef.current.y - playerScreenY, mousePosRef.current.x - playerScreenX);
         }
-        else if (inputX !== 0 || inputY !== 0) targetAngle = Math.atan2(inputY, inputX);
 
         const angleDiff = (targetAngle - aimAngleRef.current + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-        aimAngleRef.current += angleDiff * 0.4;
+        aimAngleRef.current += angleDiff * 0.4 * dt;
 
         const r = 14;
         let px = posRef.current.x, py = posRef.current.y;
@@ -465,7 +489,7 @@ const Game = ({ roomData }) => {
           }
         }
 
-        if ((keys[' '] || mobileShootRef.current) && now - shootCooldownRef.current > 500) {
+        if ((keys[' '] || keys['MouseLeft'] || mobileShootRef.current) && now - shootCooldownRef.current > 500) {
           initAudio();
           socket.emit('player-shoot');
           setMuzzleFlash(now);
@@ -510,8 +534,8 @@ const Game = ({ roomData }) => {
         }
 
         // Camera Smoothing
-        smoothedCameraRef.current.x += (targetX - smoothedCameraRef.current.x) * 0.12;
-        smoothedCameraRef.current.y += (targetY - smoothedCameraRef.current.y) * 0.12;
+        smoothedCameraRef.current.x += (targetX - smoothedCameraRef.current.x) * 0.12 * dt;
+        smoothedCameraRef.current.y += (targetY - smoothedCameraRef.current.y) * 0.12 * dt;
 
         const camX = width / 2 - smoothedCameraRef.current.x, camY = height / 2 - smoothedCameraRef.current.y;
         ctx.save();
@@ -522,7 +546,7 @@ const Game = ({ roomData }) => {
         ctx.translate(camX, camY);
 
         particlesRef.current.forEach((p, i) => {
-          p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+          p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.02 * dt;
           if (p.life <= 0) { particlesRef.current.splice(i, 1); return; }
           ctx.save(); ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
           ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
@@ -729,11 +753,14 @@ const Game = ({ roomData }) => {
     return () => {
       cancelAnimationFrame(loopId);
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('contextmenu', handleContextMenu);
       socket.off('game-state');
       socket.off('game-over');
     };
-  }, [gameState, gameOver, muzzleFlash, roomData, spectateTargetId, isSpectating]);
+  }, [gameState, gameOver, muzzleFlash, roomData, spectateTargetId, isSpectating, dimensions]);
 
   const isKeyCarrier = gameState?.key.carrierId === socket.id;
   const hasTeamsInSummary = Boolean(gameOver?.stats?.some((s) => s.teamId));

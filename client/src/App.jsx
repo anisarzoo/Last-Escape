@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { socket } from './socket';
 import Game from './Game';
 import { 
@@ -6,15 +6,24 @@ import {
   Settings, 
   Gamepad2, 
   Crown, 
-  User, 
-  ArrowRight, 
   Copy, 
   Check 
 } from 'lucide-react';
 import './App.css';
 
+const MODE_OPTIONS = [
+  { value: 'ffa', label: 'FFA', description: 'Up to 8 solo players' },
+  { value: '2v2', label: '2v2', description: 'Two teams, 2 players each' },
+  { value: '4v4', label: '4v4', description: 'Two teams, 4 players each' }
+];
+
+const modeLabels = {
+  ffa: 'Free For All',
+  '2v2': '2v2 Teams',
+  '4v4': '4v4 Teams'
+};
+
 function App() {
-  const [isConnected, setIsConnected] = useState(socket.connected);
   const [playerName, setPlayerName] = useState(() => localStorage.getItem('lastEscape_playerName') || '');
   const [roomId, setRoomId] = useState('');
   const [isJoined, setIsJoined] = useState(false);
@@ -22,6 +31,7 @@ function App() {
   const [roomData, setRoomData] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
   const [error, setError] = useState('');
+  const [selectedMode, setSelectedMode] = useState('ffa');
 
   // Persist player name
   useEffect(() => {
@@ -63,7 +73,7 @@ function App() {
     if (playerName) {
       const newRoomId = Math.random().toString(36).substr(2, 6).toUpperCase();
       socket.connect();
-      socket.emit('join-room', { roomId: newRoomId, playerName, create: true });
+      socket.emit('join-room', { roomId: newRoomId, playerName, create: true, mode: selectedMode });
     }
   };
 
@@ -83,6 +93,16 @@ function App() {
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
+
+  const canStartMatch = roomData?.isTeamMode
+    ? roomData.players.length === roomData.maxPlayers
+    : (roomData?.players.length || 0) >= 2;
+
+  const teamSummary = roomData?.isTeamMode ? roomData.players.reduce((acc, p) => {
+    if (p.teamId === 'A') acc.A += 1;
+    if (p.teamId === 'B') acc.B += 1;
+    return acc;
+  }, { A: 0, B: 0 }) : null;
 
   if (!gameStarted) {
     return (
@@ -111,7 +131,9 @@ function App() {
                 if (window.screen.orientation && window.screen.orientation.lock) {
                   window.screen.orientation.lock('landscape').catch(() => {});
                 }
-              } catch (e) {}
+              } catch {
+                // Ignore fullscreen/orientation API failures on unsupported devices.
+              }
             }}
           >
             Enter Landscape
@@ -132,6 +154,19 @@ function App() {
                 onChange={(e) => setPlayerName(e.target.value)}
                 maxLength={15}
               />
+              <div className="mode-selector">
+                {MODE_OPTIONS.map((modeOption) => (
+                  <button
+                    key={modeOption.value}
+                    type="button"
+                    className={`mode-pill ${selectedMode === modeOption.value ? 'active' : ''}`}
+                    onClick={() => setSelectedMode(modeOption.value)}
+                  >
+                    <span>{modeOption.label}</span>
+                    <small>{modeOption.description}</small>
+                  </button>
+                ))}
+              </div>
               <button onClick={handleCreate} disabled={!playerName}>
                 Create Room
               </button>
@@ -157,19 +192,30 @@ function App() {
               >
                 Room: {roomId} {isCopied ? <Check size={16} style={{marginLeft: 8, color: 'var(--accent)'}} /> : <Copy size={16} style={{marginLeft: 8, opacity: 0.5}} />}
               </h2>
+
+              <div className="mode-readout">
+                <span className="mode-readout-label">Mode</span>
+                <strong>{modeLabels[roomData?.mode] || 'Free For All'}</strong>
+                {roomData?.isTeamMode && (
+                  <span className="team-balance">TEAM A {teamSummary?.A || 0} : {teamSummary?.B || 0} TEAM B</span>
+                )}
+              </div>
               
               <div className="player-list-scroll">
                 {roomData?.players.map(p => (
                   <div key={p.id} className="player-row">
                     <span className="player-dot" style={{ background: p.color, color: p.color }}></span>
                     <span style={{flex: 1}}>{p.name} {p.id === socket.id && '(You)'}</span>
+                    {roomData?.isTeamMode && p.teamId && (
+                      <span className={`team-chip team-${p.teamId.toLowerCase()}`}>TEAM {p.teamId}</span>
+                    )}
                     {p.isHost && <Crown size={16} style={{color: '#fbbf24'}} />}
                   </div>
                 ))}
               </div>
 
               {roomData?.hostId === socket.id ? (
-                <button onClick={handleStart} className="start-btn">
+                <button onClick={handleStart} className="start-btn" disabled={!canStartMatch}>
                   START MISSION
                 </button>
               ) : (
@@ -177,6 +223,11 @@ function App() {
                   <p>Awaiting host initialization...</p>
                 </div>
               )}
+              <div className="start-hint">
+                {roomData?.isTeamMode
+                  ? `Start requires exactly ${roomData.maxPlayers} players (${roomData.teamSize}v${roomData.teamSize}).`
+                  : 'Start requires at least 2 players.'}
+              </div>
             </div>
           )}
 
@@ -187,7 +238,7 @@ function App() {
                 <Trophy className="htp-icon" />
                 <h3>OBJECTIVE</h3>
               </div>
-              <p>Locate the <span>MASTER KEY</span> hidden at the center. Secure it and reach any <span>CORNER EXIT</span> to survive.</p>
+              <p>Locate the <span>MASTER KEY</span> hidden at the center. Secure it and reach any <span>EXIT</span> to survive.</p>
             </div>
             
             <div className="htp-column">
@@ -196,7 +247,7 @@ function App() {
                 <h3>MECHANICS</h3>
               </div>
               <ul>
-                <li><span>DRAIN</span>: The key carrier siphons health from all nearby rivals.</li>
+                <li><span>DRAIN</span>: The key carrier siphons health from enemy players over time.</li>
                 <li><span>REWARD</span>: Eliminating opponents restores your HP and weapon range.</li>
                 <li><span>ZONE</span>: The safe zone is shrinking. Stay inside or perish.</li>
               </ul>

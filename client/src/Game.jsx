@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { socket } from './socket';
 import { MAZE_MAP, TILE_SIZE, MAZE_WIDTH, MAZE_HEIGHT } from './constants';
 import { 
@@ -6,8 +6,6 @@ import {
   Target, 
   Activity, 
   Wind, 
-  Map as MapIcon, 
-  AlertTriangle,
   Zap,
   Crosshair
 } from 'lucide-react';
@@ -152,7 +150,7 @@ const drawKey = (ctx, x, y, pulse) => {
   ctx.restore();
 };
 
-const Game = ({ roomData, playerName }) => {
+const Game = ({ roomData }) => {
   const canvasRef = useRef(null);
   const minimapCanvasRef = useRef(null);
   const posRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
@@ -160,6 +158,8 @@ const Game = ({ roomData, playerName }) => {
   const [gameState, setGameState] = useState(null);
   const [gameOver, setGameOver] = useState(null);
   const [isSpectating, setIsSpectating] = useState(false);
+  const [spectateTargetId, setSpectateTargetId] = useState(null);
+  const [dashCDRemaining, setDashCDRemaining] = useState(0);
   const [muzzleFlash, setMuzzleFlash] = useState(0);
   const [screenShake, setScreenShake] = useState(0);
   const [killFeed, setKillFeed] = useState([]);
@@ -185,6 +185,32 @@ const Game = ({ roomData, playerName }) => {
   });
 
   const prevPlayersRef = useRef({});
+  const localPlayer = gameState?.players.find((p) => p.id === socket.id);
+  const isTeamMode = Boolean(gameState?.isTeamMode || roomData?.isTeamMode);
+  const isEliminated = Boolean(localPlayer && localPlayer.hp <= 0);
+  const activeSpectating = isSpectating || (isTeamMode && isEliminated && !gameOver);
+
+  const spectateCandidates = useMemo(() => {
+    if (!gameState || !localPlayer) return [];
+
+    const aliveOthers = gameState.players.filter((p) => p.id !== socket.id && p.hp > 0);
+    if (aliveOthers.length === 0) return [];
+
+    if (isTeamMode && localPlayer.teamId) {
+      const aliveTeammates = aliveOthers.filter((p) => p.teamId === localPlayer.teamId);
+      if (aliveTeammates.length > 0) return aliveTeammates;
+      return aliveOthers.filter((p) => p.teamId !== localPlayer.teamId);
+    }
+
+    const killer = aliveOthers.find((p) => p.id === localPlayer.killedBy);
+    if (!killer) return aliveOthers;
+    return [killer, ...aliveOthers.filter((p) => p.id !== killer.id)];
+  }, [gameState, isTeamMode, localPlayer]);
+
+  const spectateTarget = useMemo(() => {
+    if (spectateCandidates.length === 0) return null;
+    return spectateCandidates.find((p) => p.id === spectateTargetId) || spectateCandidates[0];
+  }, [spectateCandidates, spectateTargetId]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -195,6 +221,13 @@ const Game = ({ roomData, playerName }) => {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDashCDRemaining(Math.max(0, 3000 - (Date.now() - dashCooldownRef.current)));
+    }, 100);
+    return () => clearInterval(timer);
   }, []);
 
   const createParticles = (x, y, color, count = 10, speed = 2, life = 1) => {
@@ -282,20 +315,21 @@ const Game = ({ roomData, playerName }) => {
         });
       }
 
+      const loopMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
       localBulletsRef.current.forEach(b => {
         const nextX = b.x + b.vx * dt;
         const nextY = b.y + b.vy * dt;
         const nextTileX = Math.floor(nextX / TILE_SIZE);
         const nextTileY = Math.floor(nextY / TILE_SIZE);
-        const isWall = MAZE_MAP[nextTileY]?.[nextTileX] === 1;
+        const isWall = loopMaze[nextTileY]?.[nextTileX] === 1;
 
         if (isWall) {
           if (b.bounces > 0) {
             const curTileX = Math.floor(b.x / TILE_SIZE);
             const curTileY = Math.floor(b.y / TILE_SIZE);
             let bounced = false;
-            if (MAZE_MAP[curTileY]?.[nextTileX] === 1) { b.vx *= -1; bounced = true; }
-            if (MAZE_MAP[nextTileY]?.[curTileX] === 1) { b.vy *= -1; bounced = true; }
+            if (loopMaze[curTileY]?.[nextTileX] === 1) { b.vx *= -1; bounced = true; }
+            if (loopMaze[nextTileY]?.[curTileX] === 1) { b.vy *= -1; bounced = true; }
             if (!bounced) { b.vx *= -1; b.vy *= -1; }
             b.bounces--;
           } else {
@@ -307,17 +341,16 @@ const Game = ({ roomData, playerName }) => {
       });
 
       if (!gameOver) {
-        let step = 5 * dt;
         const now = Date.now();
         const isDashing = now - dashTimeRef.current < 200;
         const keys = keysRef.current;
+        let speedMultiplier = 1;
         
         if (isDashing) {
-          step *= 4; 
+          speedMultiplier = 4;
           createParticles(posRef.current.x, posRef.current.y, 'rgba(99, 102, 241, 0.4)', 2, 0.5, 0.5);
-        } else {
-          const localPlayer = gameState?.players.find(p => p.id === socket.id);
-          if (localPlayer?.isCarryingKey) step *= 1.25;
+        } else if (localPlayer?.isCarryingKey) {
+          speedMultiplier = 1.25;
         }
 
         if (keys['Shift'] && now - dashCooldownRef.current > 3000 && !isDashing) {
@@ -339,7 +372,7 @@ const Game = ({ roomData, playerName }) => {
           inputY = moveJoystickRef.current.y;
         }
 
-        const ACCEL = 0.8 * dt;
+        const ACCEL = 0.8 * dt * speedMultiplier;
         const FRICTION = isDashing ? 0.98 : 0.88;
         if (inputX !== 0) velRef.current.x += inputX * ACCEL;
         if (inputY !== 0) velRef.current.y += inputY * ACCEL;
@@ -384,7 +417,7 @@ const Game = ({ roomData, playerName }) => {
         let tx = px + dx;
         if (dy !== 0 && dx === 0) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.15;
         let canX = true;
-        const currentMaze = gameState?.maze || MAZE_MAP;
+        const currentMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
         const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
         for(let p of xPts) {
           const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
@@ -430,14 +463,10 @@ const Game = ({ roomData, playerName }) => {
         const curX = posRef.current.x, curY = posRef.current.y;
         let targetX = curX, targetY = curY;
 
-        if (isSpectating && gameState) {
-          const lp = gameState.players.find(p => p.id === socket.id);
-          let spectateId = lp?.killedBy;
-          let targetPlayer = gameState.players.find(p => p.id === spectateId);
-          while (targetPlayer && targetPlayer.hp <= 0 && targetPlayer.killedBy && targetPlayer.killedBy !== 'ZONE') {
-            targetPlayer = gameState.players.find(p => p.id === targetPlayer.killedBy);
-          }
-          if (targetPlayer && targetPlayer.hp > 0) { targetX = targetPlayer.x; targetY = targetPlayer.y; }
+        if (activeSpectating && gameState) {
+          const targetId = spectateTarget?.id || spectateTargetId;
+          const targetPlayer = gameState.players.find((p) => p.id === targetId && p.hp > 0);
+          if (targetPlayer) { targetX = targetPlayer.x; targetY = targetPlayer.y; }
           else {
             let closest = null, minDist = Infinity;
             gameState.players.forEach(p => {
@@ -474,7 +503,7 @@ const Game = ({ roomData, playerName }) => {
         }
 
 
-        const activeMaze = gameState?.maze || MAZE_MAP;
+        const activeMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
         activeMaze.forEach((row, y) => {
           row.forEach((tile, x) => {
             const tx=x*TILE_SIZE, ty=y*TILE_SIZE;
@@ -652,12 +681,10 @@ const Game = ({ roomData, playerName }) => {
       socket.off('game-state');
       socket.off('game-over');
     };
-  }, [gameState, gameOver, muzzleFlash]);
+  }, [gameState, gameOver, muzzleFlash, roomData, spectateTargetId, isSpectating]);
 
-  const localPlayer = gameState?.players.find(p => p.id === socket.id);
-  const isEliminated = localPlayer && localPlayer.hp <= 0;
-  const dashCDRemaining = Math.max(0, 3000 - (Date.now() - dashCooldownRef.current));
   const isKeyCarrier = gameState?.key.carrierId === socket.id;
+  const hasTeamsInSummary = Boolean(gameOver?.stats?.some((s) => s.teamId));
 
   const handleTouchStart = (e) => {
     if (!isMobile) return;
@@ -754,6 +781,24 @@ const Game = ({ roomData, playerName }) => {
       socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
     }
   };
+
+  const beginSpectating = () => {
+    setIsSpectating(true);
+    if (spectateCandidates.length > 0) {
+      setSpectateTargetId(spectateCandidates[0].id);
+    }
+  };
+
+  const cycleSpectateTarget = (direction) => {
+    if (spectateCandidates.length < 2) return;
+
+    const currentIndex = spectateCandidates.findIndex((p) => p.id === spectateTargetId);
+    const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+    const nextIndex = (safeIndex + direction + spectateCandidates.length) % spectateCandidates.length;
+    setSpectateTargetId(spectateCandidates[nextIndex].id);
+  };
+
+  const spectateTargetName = spectateTarget ? spectateTarget.name.toUpperCase() : 'BATTLEFIELD';
 
   return (
     <div 
@@ -864,7 +909,7 @@ const Game = ({ roomData, playerName }) => {
       )}
 
       {/* Elimination Overlay */}
-      {isEliminated && !isSpectating && !gameOver && (
+      {isEliminated && !activeSpectating && !gameOver && (
         <div className="elimination-overlay">
           <div className="overlay-content">
             <h1 className="glitch-text">TERMINATED</h1>
@@ -874,7 +919,7 @@ const Game = ({ roomData, playerName }) => {
               </span>
             </p>
             <div className="overlay-buttons">
-              <button onClick={() => setIsSpectating(true)}>SPECTATE KILLER</button>
+              <button onClick={beginSpectating}>{isTeamMode ? 'SPECTATE TEAMMATE' : 'SPECTATE KILLER'}</button>
               <button onClick={() => window.location.reload()}>RETURN TO MENU</button>
             </div>
           </div>
@@ -882,21 +927,16 @@ const Game = ({ roomData, playerName }) => {
       )}
 
       {/* Spectate Label */}
-      {isSpectating && !gameOver && (
+      {activeSpectating && !gameOver && (
         <div className="spectate-label">
           <span style={{opacity: 0.6, fontSize: '0.8rem'}}>WATCHING</span>
-          <span style={{color: 'var(--accent)'}}>
-            {
-              (() => {
-                let sId = localPlayer?.killedBy;
-                let target = gameState?.players.find(p => p.id === sId);
-                while (target && target.hp <= 0 && target.killedBy && target.killedBy !== 'ZONE') {
-                  target = gameState?.players.find(p => p.id === target.killedBy);
-                }
-                return target ? target.name.toUpperCase() : 'BATTLEFIELD';
-              })()
-            }
-          </span>
+          <span style={{color: 'var(--accent)'}}>{spectateTargetName}</span>
+          {spectateCandidates.length > 1 && (
+            <>
+              <button className="spectate-switch-btn" onClick={() => cycleSpectateTarget(-1)}>PREV</button>
+              <button className="spectate-switch-btn" onClick={() => cycleSpectateTarget(1)}>NEXT</button>
+            </>
+          )}
           <button className="spectate-exit-btn" onClick={() => window.location.reload()}>EXIT</button>
         </div>
       )}
@@ -915,6 +955,7 @@ const Game = ({ roomData, playerName }) => {
                 <thead>
                   <tr>
                     <th>AGENT</th>
+                    {hasTeamsInSummary && <th>TEAM</th>}
                     <th>KILLS</th>
                     <th>HOLD TIME</th>
                   </tr>
@@ -922,7 +963,8 @@ const Game = ({ roomData, playerName }) => {
                 <tbody>
                   {gameOver.stats?.sort((a,b) => b.score - a.score).map((s, i) => (
                     <tr key={i} className={s.isWinner ? 'winner-row' : ''}>
-                      <td>{s.name.toUpperCase()} {s.isWinner ? '🏆' : ''}</td>
+                      <td>{s.name.toUpperCase()} {s.isWinner ? '(WINNER)' : ''}</td>
+                      {hasTeamsInSummary && <td>{s.teamId ? `TEAM ${s.teamId}` : '-'}</td>}
                       <td>{s.score}</td>
                       <td>{s.holdTime}s</td>
                     </tr>

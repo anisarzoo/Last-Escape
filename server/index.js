@@ -22,37 +22,146 @@ const PORT = process.env.PORT || 3001;
 const players = {};
 const rooms = {};
 
-// Helper to move player safely (collision aware)
-function moveSafely(p, dx, dy) {
-  const r = 14;
-  let newX = p.x + dx;
-  let newY = p.y + dy;
+const GAME_MODES = {
+  FFA: 'ffa',
+  TWO_V_TWO: '2v2',
+  FOUR_V_FOUR: '4v4'
+};
 
-  const checkWall = (tx, ty) => {
-    const pts = [
-      { x: tx - r, y: ty - r },
-      { x: tx + r, y: ty - r },
-      { x: tx - r, y: ty + r },
-      { x: tx + r, y: ty + r }
-    ];
-    for (const pt of pts) {
-      const tileX = Math.floor(pt.x / TILE_SIZE);
-      const tileY = Math.floor(pt.y / TILE_SIZE);
-      if (MAZE_MAP[tileY] && MAZE_MAP[tileY][tileX] === 1) return true;
-    }
-    return false;
+const MODE_CONFIG = {
+  [GAME_MODES.FFA]: { maxPlayers: 8, teamSize: 1, isTeamMode: false },
+  [GAME_MODES.TWO_V_TWO]: { maxPlayers: 4, teamSize: 2, isTeamMode: true },
+  [GAME_MODES.FOUR_V_FOUR]: { maxPlayers: 8, teamSize: 4, isTeamMode: true }
+};
+
+const TEAM_IDS = ['A', 'B'];
+
+const spawnPoints = [
+  { x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 }, // Top-Left
+  { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Right
+  { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 }, // Top-Right
+  { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Left
+  { x: MAZE_WIDTH / 2, y: TILE_SIZE * 0.5 }, // Top-Mid
+  { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Mid
+  { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT / 2 }, // Left-Mid
+  { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT / 2 } // Right-Mid
+];
+
+const teamSpawnOrder = {
+  A: [0, 3, 4, 6],
+  B: [2, 1, 5, 7]
+};
+
+function sanitizeMode(mode) {
+  if (mode === GAME_MODES.TWO_V_TWO || mode === GAME_MODES.FOUR_V_FOUR) return mode;
+  return GAME_MODES.FFA;
+}
+
+function getModeConfig(mode) {
+  return MODE_CONFIG[sanitizeMode(mode)];
+}
+
+function isTeamModeRoom(room) {
+  return !!room?.isTeamMode;
+}
+
+function getRoomPlayers(room) {
+  return room.players.map((id) => players[id]).filter(Boolean);
+}
+
+function buildRoomPayload(room) {
+  return {
+    ...room,
+    players: getRoomPlayers(room)
   };
+}
 
-  // Try X
-  if (!checkWall(newX, p.y)) p.x = newX;
-  // Try Y
-  if (!checkWall(p.x, newY)) p.y = newY;
+function countTeamPlayers(room, teamId) {
+  return room.players.reduce((count, id) => {
+    const p = players[id];
+    return p && p.teamId === teamId ? count + 1 : count;
+  }, 0);
+}
+
+function assignTeamId(room) {
+  if (!isTeamModeRoom(room)) return null;
+
+  const countA = countTeamPlayers(room, 'A');
+  const countB = countTeamPlayers(room, 'B');
+
+  if (countA < room.teamSize && (countA <= countB || countB >= room.teamSize)) return 'A';
+  if (countB < room.teamSize) return 'B';
+  return null;
+}
+
+function getSpawnPoint(room, teamId) {
+  if (!isTeamModeRoom(room) || !teamId) {
+    return spawnPoints[room.players.length % spawnPoints.length];
+  }
+
+  const existingTeamCount = countTeamPlayers(room, teamId);
+  const order = teamSpawnOrder[teamId] || teamSpawnOrder.A;
+  const index = order[existingTeamCount % order.length];
+  return spawnPoints[index];
+}
+
+function isTeammates(room, aId, bId) {
+  if (!isTeamModeRoom(room)) return false;
+  const a = players[aId];
+  const b = players[bId];
+  return !!a && !!b && a.teamId && a.teamId === b.teamId;
+}
+
+function dropKey(room, player) {
+  if (!player) return;
+  player.isCarryingKey = false;
+  if (room.key.carrierId === player.id) {
+    room.key.carrierId = null;
+    room.key.x = player.x;
+    room.key.y = player.y;
+    room.keyHoldTime = 0;
+    room.lastKeyUpdate = null;
+  }
+}
+
+function applyElimination(room, victim, killerId) {
+  if (!victim || victim.hp > 0) return;
+
+  const wasCarrier = victim.isCarryingKey;
+  victim.hp = 0;
+
+  if (killerId && killerId !== 'ZONE') {
+    const killer = players[killerId];
+    if (killer) {
+      killer.score += 1;
+      killer.range = Math.min(8, killer.range + 1);
+      victim.killedBy = killer.id;
+      if (wasCarrier) {
+        killer.hp = Math.min(100, killer.hp + 50);
+      }
+    } else {
+      victim.killedBy = 'ZONE';
+    }
+  } else {
+    victim.killedBy = 'ZONE';
+  }
+
+  if (wasCarrier) {
+    dropKey(room, victim);
+  }
+}
+
+function getWinnerLabel(room, carrier) {
+  if (room.isTeamMode && carrier.teamId) {
+    return `TEAM ${carrier.teamId}`;
+  }
+  return carrier.name;
 }
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('join-room', ({ roomId, playerName, create }) => {
+  socket.on('join-room', ({ roomId, playerName, create, mode }) => {
     // 1. Validation
     if (!rooms[roomId] && !create) {
       socket.emit('error', { message: 'Invalid Room Code' });
@@ -64,30 +173,22 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: 'Game already in progress' });
         return;
       }
-      if (rooms[roomId].players.length >= 8) {
-        socket.emit('error', { message: 'Room is full (Max 8 players)' });
+      if (rooms[roomId].players.length >= rooms[roomId].maxPlayers) {
+        socket.emit('error', { message: `Room is full (Max ${rooms[roomId].maxPlayers} players)` });
         return;
       }
     }
 
-    socket.join(roomId);
-    
-    // Players spawn exactly at the 8 Exit locations
-    const spawnPoints = [
-      { x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 },   // Top-Left
-      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Right
-      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 },  // Top-Right
-      { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Left
-      { x: MAZE_WIDTH / 2, y: TILE_SIZE * 0.5 },   // Top-Mid
-      { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Mid
-      { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT / 2 },  // Left-Mid
-      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT / 2 }  // Right-Mid
-    ];
-
     if (!rooms[roomId]) {
+      const selectedMode = sanitizeMode(mode);
+      const config = getModeConfig(selectedMode);
       rooms[roomId] = {
         id: roomId,
         players: [],
+        mode: selectedMode,
+        isTeamMode: config.isTeamMode,
+        teamSize: config.teamSize,
+        maxPlayers: config.maxPlayers,
         bullets: [],
         maze: JSON.parse(JSON.stringify(MAZE_MAP)), // Deep copy for room-specific destruction
         weakWallsHP: {}, // Track HP of type 3 tiles
@@ -101,13 +202,22 @@ io.on('connection', (socket) => {
       };
     }
 
-    const playerIndex = rooms[roomId].players.length % 8;
-    const startPos = spawnPoints[playerIndex];
+    const room = rooms[roomId];
+    const teamId = assignTeamId(room);
+    if (room.isTeamMode && !teamId) {
+      socket.emit('error', { message: 'Unable to assign team. Room is already balanced and full.' });
+      return;
+    }
+
+    socket.join(roomId);
+
+    const startPos = getSpawnPoint(room, teamId);
 
     players[socket.id] = {
       id: socket.id,
       name: playerName,
       roomId,
+      teamId,
       x: startPos.x,
       y: startPos.y,
       hp: 100,
@@ -115,7 +225,7 @@ io.on('connection', (socket) => {
       range: 5,
       isCarryingKey: false,
       color: `hsl(${Math.random() * 360}, 70%, 60%)`,
-      isHost: rooms[roomId].hostId === socket.id,
+      isHost: room.hostId === socket.id,
       lastShotTime: 0,
       aimAngle: 0,
       totalKeyHoldTime: 0,
@@ -123,21 +233,38 @@ io.on('connection', (socket) => {
       isDashing: false
     };
 
-    rooms[roomId].players.push(socket.id);
-    io.to(roomId).emit('room-update', {
-      ...rooms[roomId],
-      players: rooms[roomId].players.map(id => players[id]).filter(Boolean)
-    });
+    room.players.push(socket.id);
+    io.to(roomId).emit('room-update', buildRoomPayload(room));
     console.log(`${playerName} joined room ${roomId}`);
   });
 
   socket.on('start-game', () => {
     const player = players[socket.id];
-    if (player && rooms[player.roomId] && rooms[player.roomId].hostId === socket.id) {
-      rooms[player.roomId].gameStarted = true;
-      rooms[player.roomId].startTime = Date.now();
-      rooms[player.roomId].keyHoldTime = 0;
-      rooms[player.roomId].lastKeyUpdate = null;
+    const room = rooms[player?.roomId];
+    if (player && room && room.hostId === socket.id) {
+      if (room.players.length < 2) {
+        socket.emit('error', { message: 'Need at least 2 players to start.' });
+        return;
+      }
+
+      if (room.isTeamMode) {
+        if (room.players.length !== room.maxPlayers) {
+          socket.emit('error', { message: `${room.mode.toUpperCase()} requires exactly ${room.maxPlayers} players.` });
+          return;
+        }
+
+        const teamA = countTeamPlayers(room, 'A');
+        const teamB = countTeamPlayers(room, 'B');
+        if (teamA !== room.teamSize || teamB !== room.teamSize) {
+          socket.emit('error', { message: `Teams must be balanced (${room.teamSize}v${room.teamSize}).` });
+          return;
+        }
+      }
+
+      room.gameStarted = true;
+      room.startTime = Date.now();
+      room.keyHoldTime = 0;
+      room.lastKeyUpdate = null;
       io.to(player.roomId).emit('game-started');
       startGameLoop(player.roomId);
     }
@@ -187,12 +314,16 @@ io.on('connection', (socket) => {
 
         for (const pId of room.players) {
           if (pId === socket.id) continue;
+          if (isTeammates(room, socket.id, pId)) continue;
           const target = players[pId];
           if (!target || target.hp <= 0) continue;
 
           const dist = Math.sqrt((player.x - target.x)**2 + (player.y - target.y)**2);
           if (dist < 40) { // Collision radius
             target.hp -= 10;
+            if (target.hp <= 0) {
+              applyElimination(room, target, socket.id);
+            }
             
             // Pure velocity impulse (High force for smooth but strong push)
             const kbForce = 45; 
@@ -264,21 +395,19 @@ io.on('connection', (socket) => {
       if (room) {
         // Drop key if carrier disconnects
         if (room.key.carrierId === socket.id) {
-          room.key.carrierId = null;
-          room.key.x = player.x;
-          room.key.y = player.y;
-          room.keyHoldTime = 0;
-          room.lastKeyUpdate = null;
+          dropKey(room, player);
         }
         
         room.players = room.players.filter(id => id !== socket.id);
         if (room.players.length === 0) {
           delete rooms[player.roomId];
         } else {
-          io.to(player.roomId).emit('room-update', {
-            ...room,
-            players: room.players.map(id => players[id])
-          });
+          if (room.hostId === socket.id) {
+            room.hostId = room.players[0];
+            const newHost = players[room.hostId];
+            if (newHost) newHost.isHost = true;
+          }
+          io.to(player.roomId).emit('room-update', buildRoomPayload(room));
         }
       }
       delete players[socket.id];
@@ -292,8 +421,7 @@ httpServer.listen(PORT, () => {
 });
 
 function startGameLoop(roomId) {
-  const room = rooms[roomId];
-  if (!room) return;
+  if (!rooms[roomId]) return;
 
   const TICK_RATE = 30;
   const interval = setInterval(() => {
@@ -303,16 +431,29 @@ function startGameLoop(roomId) {
     }
 
     updateRoom(roomId);
+    const room = rooms[roomId];
+    if (!room) {
+      clearInterval(interval);
+      return;
+    }
+
     io.to(roomId).emit('game-state', {
-      players: room.players.map(id => {
-        const p = players[id];
-        return { 
-          id: p.id, x: p.x, y: p.y, hp: p.hp, 
-          aimAngle: p.aimAngle, isCarryingKey: p.isCarryingKey, 
-          score: p.score, name: p.name, color: p.color,
-          range: p.range
-        };
-      }),
+      mode: room.mode,
+      isTeamMode: room.isTeamMode,
+      players: getRoomPlayers(room).map((p) => ({
+        id: p.id,
+        x: p.x,
+        y: p.y,
+        hp: p.hp,
+        aimAngle: p.aimAngle,
+        isCarryingKey: p.isCarryingKey,
+        score: p.score,
+        name: p.name,
+        color: p.color,
+        range: p.range,
+        killedBy: p.killedBy || null,
+        teamId: p.teamId || null
+      })),
       bullets: room.bullets.map(b => ({ 
         id: b.id, x: b.x, y: b.y, vx: b.vx, vy: b.vy, bounces: b.bounces 
       })),
@@ -400,14 +541,13 @@ function updateRoom(roomId) {
     // Player collision
     for (const pId of room.players) {
       if (pId === b.ownerId) continue;
+      if (isTeammates(room, b.ownerId, pId)) continue;
       const p = players[pId];
       if (!p || p.hp <= 0) continue;
 
       const dist = Math.sqrt((b.x - p.x)**2 + (b.y - p.y)**2);
       if (dist < 20) {
-        // Key carrier buff: takes less damage or has a shield
-        const wasCarrier = p.isCarryingKey;
-        const damage = wasCarrier ? 15 : 20; 
+        const damage = p.isCarryingKey ? 15 : 20;
         p.hp -= damage;
         
         // Apply Knockback (Pure Velocity)
@@ -422,29 +562,7 @@ function updateRoom(roomId) {
         io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'hit' });
 
         if (p.hp <= 0) {
-          // Elimination
-          const killer = players[b.ownerId];
-          if (killer) {
-            killer.score += 1;
-            killer.range = Math.min(8, killer.range + 1);
-            p.killedBy = killer.id;
-            
-            // Hunter Reward: If you kill the key carrier, get +50 HP
-            if (wasCarrier) {
-              killer.hp = Math.min(100, killer.hp + 50);
-            }
-          } else {
-            p.killedBy = 'ZONE';
-          }
-          
-          if (wasCarrier) {
-            p.isCarryingKey = false;
-            room.key.carrierId = null;
-            room.key.x = p.x;
-            room.key.y = p.y;
-            room.keyHoldTime = 0;
-            room.lastKeyUpdate = null;
-          }
+          applyElimination(room, p, b.ownerId);
         }
         break;
       }
@@ -490,12 +608,12 @@ function updateRoom(roomId) {
 
         for (const pId of room.players) {
           if (pId === room.key.carrierId) continue;
+          if (isTeammates(room, room.key.carrierId, pId)) continue;
           const p = players[pId];
           if (p && p.hp > 0) {
             p.hp -= drainAmount;
             if (p.hp <= 0) {
-              p.hp = 0;
-              p.killedBy = room.key.carrierId; // Technically killed by the pressure of the carrier
+              applyElimination(room, p, room.key.carrierId);
             }
           }
         }
@@ -508,13 +626,17 @@ function updateRoom(roomId) {
       const isOutside = carrier.x < -20 || carrier.x > MAZE_WIDTH + 20 || carrier.y < -20 || carrier.y > MAZE_HEIGHT + 20;
 
       if (onExitTile || isOutside) {
+        const winnerTeamId = room.isTeamMode ? carrier.teamId : null;
+        const roomPlayers = getRoomPlayers(room);
         io.to(roomId).emit('game-over', { 
-          winner: carrier.name,
-          stats: room.players.map(id => ({
-            name: players[id].name,
-            score: players[id].score,
-            holdTime: Math.floor(players[id].totalKeyHoldTime || 0),
-            isWinner: id === room.key.carrierId
+          winner: getWinnerLabel(room, carrier),
+          winnerTeamId,
+          stats: roomPlayers.map((p) => ({
+            name: p.name,
+            teamId: p.teamId || null,
+            score: p.score,
+            holdTime: Math.floor(p.totalKeyHoldTime || 0),
+            isWinner: room.isTeamMode ? p.teamId === winnerTeamId : p.id === room.key.carrierId
           }))
         });
         delete rooms[roomId];
@@ -536,15 +658,10 @@ function updateRoom(roomId) {
     if (distFromCenter > room.zoneRadius) {
       p.hp -= 0.5; // Steady drain instead of instant kill
       if (p.hp <= 0) {
-        p.killedBy = 'ZONE';
+        applyElimination(room, p, 'ZONE');
       }
       if (p.isCarryingKey) {
-        p.isCarryingKey = false;
-        room.key.carrierId = null;
-        room.key.x = p.x;
-        room.key.y = p.y;
-        room.keyHoldTime = 0;
-        room.lastKeyUpdate = null;
+        dropKey(room, p);
       }
     }
   }

@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const URL = import.meta.env.VITE_BACKEND_URL || (process.env.NODE_ENV === 'production' 
+const URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD
   ? 'https://last-escape-server.onrender.com' 
   : `http://${window.location.hostname}:3001`);
 

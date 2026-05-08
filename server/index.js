@@ -273,7 +273,7 @@ io.on('connection', (socket) => {
   socket.on('player-move', (movement) => {
     const player = players[socket.id];
     const room = rooms[player?.roomId];
-    if (player && room && room.gameStarted) {
+    if (player && player.hp > 0 && room && room.gameStarted) {
       // Radius-based collision check
       const r = 14;
       const points = [
@@ -348,7 +348,7 @@ io.on('connection', (socket) => {
 
   socket.on('player-dash', () => {
     const player = players[socket.id];
-    if (player && Date.now() - player.lastDashTime > 3000) {
+    if (player && player.hp > 0 && Date.now() - player.lastDashTime > 3000) {
       player.lastDashTime = Date.now();
       player.isDashing = true;
       setTimeout(() => {

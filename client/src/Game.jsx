@@ -439,7 +439,7 @@ const Game = ({ roomData }) => {
         if(canY) py = ty; else velRef.current.y = 0;
 
         const angleChanged = Math.abs(angleDiff) > 0.01;
-        if (px !== posRef.current.x || py !== posRef.current.y || angleChanged) {
+        if (!isEliminated && (px !== posRef.current.x || py !== posRef.current.y || angleChanged)) {
           posRef.current = { x: px, y: py };
           if (now - lastEmitTimeRef.current > 30) {
             socket.emit('player-move', { x: px, y: py, aimAngle: aimAngleRef.current });

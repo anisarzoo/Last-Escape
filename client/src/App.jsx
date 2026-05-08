@@ -72,6 +72,14 @@ function App() {
     };
   }, []);
 
+  const handleLeaveRoom = () => {
+    socket.emit('leave-room');
+    setIsJoined(false);
+    setRoomData(null);
+    setRoomId('');
+    setShowCreateOptions(false);
+  };
+
   const handleCreate = () => {
     if (playerName) {
       const newRoomId = Math.random().toString(36).substr(2, 6).toUpperCase();
@@ -251,6 +259,13 @@ function App() {
                   ? `Start requires exactly ${roomData.maxPlayers} players (${roomData.teamSize}v${roomData.teamSize}).`
                   : 'Start requires at least 2 players.'}
               </div>
+              
+              <button 
+                onClick={handleLeaveRoom} 
+                className="leave-btn"
+              >
+                LEAVE ROOM
+              </button>
             </div>
           )}
 

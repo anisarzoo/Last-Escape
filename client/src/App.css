@@ -345,6 +345,26 @@ button:disabled {
   opacity: 1;
 }
 
+.leave-btn {
+  text-transform: none;
+  letter-spacing: 0.05rem;
+  font-weight: 700;
+  border: 1px solid rgba(244, 63, 94, 0.2) !important;
+  margin-top: 1rem;
+  background: rgba(244, 63, 94, 0.1) !important;
+  font-size: 0.8rem !important;
+  padding: 0.75rem !important;
+  color: var(--danger) !important;
+  opacity: 0.8;
+}
+
+.leave-btn:hover {
+  background: rgba(244, 63, 94, 0.2) !important;
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.2) !important;
+  opacity: 1;
+}
+
 .error-message {
   color: var(--danger);
   font-size: 0.85rem;

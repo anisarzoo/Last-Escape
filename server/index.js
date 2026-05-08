@@ -388,6 +388,31 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('leave-room', () => {
+    const player = players[socket.id];
+    if (player) {
+      const room = rooms[player.roomId];
+      if (room) {
+        if (room.key.carrierId === socket.id) {
+          dropKey(room, player);
+        }
+        room.players = room.players.filter(id => id !== socket.id);
+        if (room.players.length === 0) {
+          delete rooms[player.roomId];
+        } else {
+          if (room.hostId === socket.id) {
+            room.hostId = room.players[0];
+            const newHost = players[room.hostId];
+            if (newHost) newHost.isHost = true;
+          }
+          io.to(player.roomId).emit('room-update', buildRoomPayload(room));
+        }
+        socket.leave(player.roomId);
+      }
+      delete players[socket.id];
+    }
+  });
+
   socket.on('disconnect', () => {
     const player = players[socket.id];
     if (player) {

@@ -114,6 +114,18 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.start(now);
     osc.stop(now + 1.5);
   }
+  else if (type === 'ricochet') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
+    
+    osc.connect(gain);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
 };
 
 const drawKey = (ctx, x, y, pulse) => {
@@ -157,12 +169,14 @@ const Game = ({ roomData, playerName }) => {
   const [gameOver, setGameOver] = useState(null);
   const [isSpectating, setIsSpectating] = useState(false);
   const [muzzleFlash, setMuzzleFlash] = useState(0);
+  const [screenShake, setScreenShake] = useState(0);
   const keysRef = useRef({});
   const shootCooldownRef = useRef(0);
   const dashCooldownRef = useRef(0);
   const dashTimeRef = useRef(0);
   const particlesRef = useRef([]);
   const lastEmitTimeRef = useRef(0);
+  const velRef = useRef({ x: 0, y: 0 });
   const localBulletsRef = useRef([]);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
@@ -197,13 +211,30 @@ const Game = ({ roomData, playerName }) => {
     const handleSound = (data) => {
       playSpatial(data.x, data.y, data.type, posRef.current);
       // Trigger particles on sound events
-      if (data.type === 'hit') createParticles(data.x, data.y, '#f43f5e', 12, 4);
+      if (data.type === 'hit') {
+        createParticles(data.x, data.y, '#f43f5e', 12, 4);
+        setScreenShake(Date.now());
+      }
       if (data.type === 'shoot') createParticles(data.x, data.y, '#fbbf24', 5, 2);
       if (data.type === 'dash') createParticles(data.x, data.y, '#6366f1', 15, 3);
       if (data.type === 'zone-removed') createParticles(data.x, data.y, '#f43f5e', 30, 8, 2);
+      if (data.type === 'ricochet') createParticles(data.x, data.y, '#fde047', 8, 3, 0.5);
     };
     socket.on('play-sound', handleSound);
-    return () => socket.off('play-sound', handleSound);
+
+    const handleKnockback = (data) => {
+      if (data.id === socket.id) {
+        posRef.current = { x: data.x, y: data.y };
+        velRef.current = { x: data.vx, y: data.vy };
+        setScreenShake(Date.now());
+      }
+    };
+    socket.on('player-knockback', handleKnockback);
+
+    return () => {
+      socket.off('play-sound', handleSound);
+      socket.off('player-knockback', handleKnockback);
+    };
   }, []);
   useEffect(() => {
     if (roomData) {
@@ -264,9 +295,35 @@ const Game = ({ roomData, playerName }) => {
         if (keys['ArrowLeft']) inputX -= 1;
         if (keys['ArrowRight']) inputX += 1;
 
-        let dx = inputX * step;
-        let dy = inputY * step;
-        if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
+        // Physics Constants
+        const ACCEL = 0.8 * dt;
+        const FRICTION = isDashing ? 0.98 : 0.88;
+        
+        if (inputX !== 0) velRef.current.x += inputX * ACCEL;
+        if (inputY !== 0) velRef.current.y += inputY * ACCEL;
+
+        // Apply Friction
+        velRef.current.x *= FRICTION;
+        velRef.current.y *= FRICTION;
+
+        // Handle Dash Momentum
+        if (isDashing) {
+          const dashMag = 12;
+          const currentMag = Math.sqrt(velRef.current.x**2 + velRef.current.y**2);
+          if (currentMag < dashMag) {
+            const angle = Math.atan2(velRef.current.y || inputY, velRef.current.x || inputX);
+            velRef.current.x = Math.cos(angle) * dashMag;
+            velRef.current.y = Math.sin(angle) * dashMag;
+          }
+        }
+
+        let dx = velRef.current.x * dt;
+        let dy = velRef.current.y * dt;
+
+        // Drift Particles
+        if (Math.abs(velRef.current.x) + Math.abs(velRef.current.y) > 8) {
+          if (Math.random() > 0.7) createParticles(posRef.current.x, posRef.current.y, 'rgba(255,255,255,0.2)', 1, 0.5, 0.3);
+        }
 
         // 2. Stable Aim logic (separate from collision-step)
         let targetAngle = aimAngleRef.current;
@@ -298,6 +355,7 @@ const Game = ({ roomData, playerName }) => {
         const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
         for(let p of xPts) if(MAZE_MAP[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)]===1){canX=false;break;}
         if(canX) px = tx;
+        else velRef.current.x = 0; // Fix sticking
 
         // Y Collision & Sliding
         let ty = py + dy;
@@ -306,6 +364,7 @@ const Game = ({ roomData, playerName }) => {
         const yPts = [{x:px-r,y:ty-r},{x:px+r,y:ty-r},{x:px-r,y:ty+r},{x:px+r,y:ty+r}];
         for(let p of yPts) if(MAZE_MAP[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)]===1){canY=false;break;}
         if(canY) py = ty;
+        else velRef.current.y = 0; // Fix sticking
 
         const angleChanged = Math.abs(angleDiff) > 0.01;
         if (px !== posRef.current.x || py !== posRef.current.y || angleChanged) {
@@ -372,6 +431,13 @@ const Game = ({ roomData, playerName }) => {
         const camY = height / 2 - targetY;
 
         ctx.save();
+        
+        // Screen Shake
+        if (Date.now() - screenShake < 200) {
+          const intensity = 8 * (1 - (Date.now() - screenShake) / 200);
+          ctx.translate(Math.random() * intensity - intensity/2, Math.random() * intensity - intensity/2);
+        }
+
         ctx.translate(camX, camY);
 
         // --- PARTICLES ---

@@ -61,7 +61,7 @@ io.on('connection', (socket) => {
       y: startPos.y,
       hp: 100,
       score: 0,
-      range: 3,
+      range: 5,
       isCarryingKey: false,
       color: `hsl(${Math.random() * 360}, 70%, 60%)`,
       isHost: rooms[roomId].hostId === socket.id,
@@ -95,7 +95,7 @@ io.on('connection', (socket) => {
     const room = rooms[player?.roomId];
     if (player && room && room.gameStarted) {
       // Radius-based collision check
-      const r = 15;
+      const r = 14;
       const points = [
         { x: movement.x - r, y: movement.y - r },
         { x: movement.x + r, y: movement.y - r },
@@ -152,7 +152,8 @@ io.on('connection', (socket) => {
           vx: Math.cos(player.aimAngle) * 15,
           vy: Math.sin(player.aimAngle) * 15,
           range: player.range * TILE_SIZE,
-          distanceTraveled: 0
+          distanceTraveled: 0,
+          bounces: 1
         };
         room.bullets.push(bullet);
         io.to(player.roomId).emit('play-sound', { x: player.x, y: player.y, type: 'shoot' });
@@ -245,12 +246,43 @@ function updateRoom(roomId) {
     b.y += b.vy;
     b.distanceTraveled += Math.sqrt(b.vx**2 + b.vy**2);
 
-    // Wall collision
     const tileX = Math.floor(b.x / TILE_SIZE);
     const tileY = Math.floor(b.y / TILE_SIZE);
-    const isWall = MAZE_MAP[tileY] && MAZE_MAP[tileY][tileX] === 1;
+    
+    const nextX = b.x + b.vx;
+    const nextY = b.y + b.vy;
+    const nextTileX = Math.floor(nextX / TILE_SIZE);
+    const nextTileY = Math.floor(nextY / TILE_SIZE);
 
-    if (isWall || b.distanceTraveled > b.range) {
+    const isWall = MAZE_MAP[nextTileY] && MAZE_MAP[nextTileY][nextTileX] === 1;
+
+    if (isWall) {
+      if (b.bounces > 0) {
+        let bounced = false;
+        if (MAZE_MAP[tileY] && MAZE_MAP[tileY][nextTileX] === 1) {
+          b.vx *= -1;
+          bounced = true;
+        }
+        if (MAZE_MAP[nextTileY] && MAZE_MAP[nextTileY][tileX] === 1) {
+          b.vy *= -1;
+          bounced = true;
+        }
+        
+        // Safety for perfect corner/diagonal hits
+        if (!bounced) {
+          b.vx *= -1;
+          b.vy *= -1;
+        }
+        
+        b.bounces--;
+        io.to(roomId).emit('play-sound', { x: b.x, y: b.y, type: 'ricochet' });
+      } else {
+        room.bullets.splice(i, 1);
+        continue;
+      }
+    }
+
+    if (b.distanceTraveled > b.range) {
       room.bullets.splice(i, 1);
       continue;
     }
@@ -267,6 +299,16 @@ function updateRoom(roomId) {
         const wasCarrier = p.isCarryingKey;
         const damage = wasCarrier ? 15 : 20; 
         p.hp -= damage;
+        
+        // Apply Knockback
+        const kbForce = 15;
+        const angle = Math.atan2(b.vy, b.vx);
+        const kx = Math.cos(angle) * kbForce;
+        const ky = Math.sin(angle) * kbForce;
+        p.x += kx;
+        p.y += ky;
+        io.to(roomId).emit('player-knockback', { id: pId, x: p.x, y: p.y, vx: kx, vy: ky });
+
         room.bullets.splice(i, 1);
         io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'hit' });
 

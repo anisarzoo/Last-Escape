@@ -456,7 +456,7 @@ const Game = ({ roomData }) => {
           const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
           for(let p of xPts) {
             const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
-            if(tile === 1 || tile === 3) { canX=false; break; }
+            if(tile === 1 || tile === 3 || (tile === 2 && isExitLocked)) { canX=false; break; }
           }
         }
         if(canX) px = tx; else velRef.current.x = 0;
@@ -473,7 +473,7 @@ const Game = ({ roomData }) => {
           const yPts = [{x:px-r,y:ty-r},{x:px+r,y:ty-r},{x:px-r,y:ty+r},{x:px+r,y:ty+r}];
           for(let p of yPts) {
             const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
-            if(tile === 1 || tile === 3) { canY=false; break; }
+            if(tile === 1 || tile === 3 || (tile === 2 && isExitLocked)) { canY=false; break; }
           }
         }
         if(canY) py = ty; else velRef.current.y = 0;
@@ -582,10 +582,24 @@ const Game = ({ roomData }) => {
               // Cracked texture look
               ctx.beginPath(); ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)'; ctx.moveTo(tx+10, ty+10); ctx.lineTo(tx+TILE_SIZE-10, ty+TILE_SIZE-10); ctx.stroke();
             } else if (tile === 2) {
-              ctx.fillStyle = 'rgba(16, 185, 129, 0.1)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              ctx.strokeStyle = '#10b981'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              ctx.fillStyle = '#10b981'; ctx.font='900 12px Outfit'; ctx.textAlign='center';
-              ctx.fillText('EXIT', tx+TILE_SIZE/2, ty+TILE_SIZE/2+4);
+              const isLocked = (gameState?.pickupLockoutRemaining > 0);
+              if (isLocked) {
+                ctx.fillStyle = 'rgba(244, 63, 94, 0.15)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 4; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
+                // Gate Bars
+                ctx.strokeStyle = 'rgba(244, 63, 94, 0.6)'; ctx.lineWidth = 3;
+                for(let i=1; i<4; i++) {
+                  ctx.beginPath(); ctx.moveTo(tx + i*(TILE_SIZE/4), ty+4); ctx.lineTo(tx + i*(TILE_SIZE/4), ty+TILE_SIZE-4); ctx.stroke();
+                }
+                ctx.fillStyle = '#f43f5e'; ctx.font='900 11px Outfit'; ctx.textAlign='center';
+                ctx.fillText('LOCKED', tx+TILE_SIZE/2, ty+TILE_SIZE/2+4);
+              } else {
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.2)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                ctx.strokeStyle = '#10b981'; ctx.lineWidth = 3; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                ctx.shadowBlur = 15; ctx.shadowColor = '#10b981'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.shadowBlur = 0;
+                ctx.fillStyle = '#10b981'; ctx.font='900 13px Outfit'; ctx.textAlign='center';
+                ctx.fillText('OPEN', tx+TILE_SIZE/2, ty+TILE_SIZE/2+4);
+              }
             }
           });
         });

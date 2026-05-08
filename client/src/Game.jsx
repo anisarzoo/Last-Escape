@@ -877,15 +877,6 @@ const Game = ({ roomData }) => {
             ))}
           </div>
 
-          {/* Key Carrier Alert */}
-          {gameState?.key.carrierId && (
-            <div className="key-carrier-alert">
-              <Zap size={18} fill="currentColor" />
-              <span>{isKeyCarrier ? 'YOU HAVE THE MASTER KEY' : `${gameState.players.find(p => p.id === gameState.key.carrierId)?.name.toUpperCase()} HAS THE KEY`}</span>
-              <Zap size={18} fill="currentColor" />
-            </div>
-          )}
-
           {/* Main HUD */}
           {localPlayer && !isEliminated && (
             <div className="hud-container">
@@ -927,20 +918,22 @@ const Game = ({ roomData }) => {
         </div>
       )}
 
-      {/* Key Carrier Alert with Lockout Timer */}
-      {gameState?.key?.carrierId && (
+      {/* Arena Lock / Key Carrier Alerts */}
+      {gameState?.exitLockoutRemaining > 0 ? (
+        <div className="key-carrier-alert arena-lock">
+          <Zap size={20} className="lock-icon" style={{ color: 'var(--accent)' }} />
+          <span>
+            ARENA LOCK ACTIVE — WALLS BREACHABLE IN: {gameState.exitLockoutRemaining}s
+          </span>
+        </div>
+      ) : gameState?.key?.carrierId ? (
         <div className="key-carrier-alert">
           <Key size={20} className="lock-icon" />
           <span>
             {gameState.players.find(p => p.id === gameState.key.carrierId)?.name.toUpperCase()} HAS THE KEY
-            {gameState.exitLockoutRemaining > 0 && (
-              <span style={{ color: '#f43f5e', marginLeft: '10px', fontWeight: 900 }}>
-                — EXITS LOCKED: {gameState.exitLockoutRemaining}s
-              </span>
-            )}
           </span>
         </div>
-      )}
+      ) : null}
 
       {/* Elimination Overlay */}
       {isEliminated && !activeSpectating && !gameOver && (

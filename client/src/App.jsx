@@ -276,11 +276,13 @@ function App() {
                   <p>Awaiting host initialization...</p>
                 </div>
               )}
-              <div className="start-hint">
-                {roomData?.isTeamMode
-                  ? `Start requires exactly ${roomData.maxPlayers} players (${roomData.teamSize}v${roomData.teamSize}).`
-                  : 'Start requires at least 2 players.'}
-              </div>
+              {!canStartMatch && (
+                <div className="start-hint">
+                  {roomData?.isTeamMode
+                    ? `Start requires exactly ${roomData.maxPlayers} players (${roomData.teamSize}v${roomData.teamSize}).`
+                    : 'Start requires at least 2 players.'}
+                </div>
+              )}
               
               <button 
                 onClick={handleLeaveRoom} 
@@ -319,10 +321,10 @@ function App() {
                 <h3>CONTROLS</h3>
               </div>
               <div className="controls-grid">
-                <div className="control-item"><span>ARROWS</span> MOVE</div>
-                <div className="control-item"><span>WASD</span> AIM</div>
-                <div className="control-item"><span>SPACE</span> FIRE</div>
-                <div className="control-item"><span>SHIFT</span> DASH</div>
+                <div className="control-item"><span>WASD / ARROWS</span> MOVE</div>
+                <div className="control-item"><span>MOUSE</span> AIM</div>
+                <div className="control-item"><span>LEFT CLICK</span> FIRE</div>
+                <div className="control-item"><span>RIGHT CLICK</span> DASH</div>
               </div>
             </div>
           </div>

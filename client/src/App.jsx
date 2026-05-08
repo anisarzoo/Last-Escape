@@ -32,6 +32,7 @@ function App() {
   const [isCopied, setIsCopied] = useState(false);
   const [error, setError] = useState('');
   const [selectedMode, setSelectedMode] = useState('ffa');
+  const [showCreateOptions, setShowCreateOptions] = useState(false);
 
   // Persist player name
   useEffect(() => {
@@ -145,42 +146,62 @@ function App() {
         <div className="lobby-content-grid">
           {!isJoined ? (
             <div className="login-box">
-              <h2>Join the Maze</h2>
-              {error && <div className="error-message">{error}</div>}
-              <input
-                type="text"
-                placeholder="Your Nickname"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                maxLength={15}
-              />
-              <div className="mode-selector">
-                {MODE_OPTIONS.map((modeOption) => (
-                  <button
-                    key={modeOption.value}
-                    type="button"
-                    className={`mode-pill ${selectedMode === modeOption.value ? 'active' : ''}`}
-                    onClick={() => setSelectedMode(modeOption.value)}
+              {!showCreateOptions ? (
+                <>
+                  <h2>Join the Maze</h2>
+                  {error && <div className="error-message">{error}</div>}
+                  <input
+                    type="text"
+                    placeholder="Your Nickname"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    maxLength={15}
+                  />
+                  <button 
+                    onClick={() => setShowCreateOptions(true)} 
+                    disabled={!playerName}
                   >
-                    <span>{modeOption.label}</span>
-                    <small>{modeOption.description}</small>
+                    Create Room
                   </button>
-                ))}
-              </div>
-              <button onClick={handleCreate} disabled={!playerName}>
-                Create Room
-              </button>
-              <div className="divider">OR</div>
-              <input
-                type="text"
-                placeholder="Enter Room ID"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                className="room-id-input"
-              />
-              <button onClick={handleJoin} disabled={!playerName || !roomId}>
-                Join Room
-              </button>
+                  <div className="divider">OR</div>
+                  <input
+                    type="text"
+                    placeholder="Enter Room ID"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+                    className="room-id-input"
+                  />
+                  <button onClick={handleJoin} disabled={!playerName || !roomId}>
+                    Join Room
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h2>Room Settings</h2>
+                  <div className="mode-selector">
+                    {MODE_OPTIONS.map((modeOption) => (
+                      <button
+                        key={modeOption.value}
+                        type="button"
+                        className={`mode-pill ${selectedMode === modeOption.value ? 'active' : ''}`}
+                        onClick={() => setSelectedMode(modeOption.value)}
+                      >
+                        <span>{modeOption.label}</span>
+                        <small>{modeOption.description}</small>
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={handleCreate} className="start-btn">
+                    Confirm & Create
+                  </button>
+                  <button 
+                    onClick={() => setShowCreateOptions(false)} 
+                    className="back-btn"
+                  >
+                    Back to Join
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="login-box lobby-list">
@@ -287,4 +308,3 @@ function App() {
 }
 
 export default App;
-

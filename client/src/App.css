@@ -765,6 +765,19 @@ button:disabled {
   border-radius: 50px !important;
 }
 
+.app-version {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  opacity: 0.4;
+  letter-spacing: 0.1rem;
+  pointer-events: none;
+  font-family: 'Syncopate', sans-serif;
+}
+
 @media (max-width: 1000px) {
   h1 { font-size: 2.5rem; letter-spacing: 0.2rem; margin-bottom: 1.5rem; }
   .lobby-content-grid {
@@ -815,6 +828,7 @@ button:disabled {
   .htp-column p, .htp-column li { font-size: 0.7rem; line-height: 1.2; }
   
   .lobby-container { padding: 0.25rem; justify-content: center; }
+  .app-version { bottom: 0.5rem; right: 1rem; font-size: 0.55rem; opacity: 0.2; }
 }
 
 /* In-Game React UI Layer */

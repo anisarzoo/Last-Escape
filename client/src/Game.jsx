@@ -466,9 +466,6 @@ const Game = ({ roomData, playerName }) => {
           ctx.shadowBlur = 30; ctx.shadowColor = '#f43f5e'; ctx.stroke(); ctx.restore();
         }
 
-        ctx.strokeStyle = 'rgba(99, 102, 241, 0.05)'; ctx.lineWidth = 1;
-        for (let x=0; x<MAZE_WIDTH; x+=100) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,MAZE_HEIGHT); ctx.stroke(); }
-        for (let y=0; y<MAZE_HEIGHT; y+=100) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(MAZE_WIDTH,y); ctx.stroke(); }
 
         MAZE_MAP.forEach((row, y) => {
           row.forEach((tile, x) => {

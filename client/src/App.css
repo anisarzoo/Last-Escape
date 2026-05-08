@@ -94,18 +94,6 @@ body {
   100% { transform: translate(0, 0) scale(1); }
 }
 
-.lobby-container::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-image: 
-    linear-gradient(var(--glass-border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px);
-  background-size: 50px 50px;
-  pointer-events: none;
-  z-index: 1;
-  mask-image: radial-gradient(circle at 50% 50%, black, transparent 80%);
-}
 
 h1 {
   font-family: 'Syncopate', sans-serif;

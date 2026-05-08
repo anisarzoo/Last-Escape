@@ -486,6 +486,7 @@ function startGameLoop(roomId) {
       key: room.key,
       keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,
+      exitLockoutRemaining: (room.key.carrierId && room.keyPickupTime) ? Math.max(0, 30 - Math.floor((Date.now() - room.keyPickupTime) / 1000)) : 0,
       maze: room.maze, // Send dynamic maze state
       time: Math.floor((Date.now() - room.startTime) / 1000)
     });

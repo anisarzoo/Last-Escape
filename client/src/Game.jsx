@@ -7,7 +7,8 @@ import {
   Activity, 
   Wind, 
   Zap,
-  Crosshair
+  Crosshair,
+  Key
 } from 'lucide-react';
 
 // --- AUDIO ENGINE ---
@@ -923,6 +924,21 @@ const Game = ({ roomData }) => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Key Carrier Alert with Lockout Timer */}
+      {gameState?.key?.carrierId && (
+        <div className="key-carrier-alert">
+          <Key size={20} className="lock-icon" />
+          <span>
+            {gameState.players.find(p => p.id === gameState.key.carrierId)?.name.toUpperCase()} HAS THE KEY
+            {gameState.exitLockoutRemaining > 0 && (
+              <span style={{ color: '#f43f5e', marginLeft: '10px', fontWeight: 900 }}>
+                — EXITS LOCKED: {gameState.exitLockoutRemaining}s
+              </span>
+            )}
+          </span>
         </div>
       )}
 

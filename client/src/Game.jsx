@@ -501,7 +501,15 @@ const Game = ({ roomData }) => {
       if (canvas) {
         const ctx = canvas.getContext('2d');
         const { width, height } = dimensions;
-        if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+        const dpr = window.devicePixelRatio || 1;
+        
+        if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+          canvas.width = Math.floor(width * dpr);
+          canvas.height = Math.floor(height * dpr);
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, width, height);
 
@@ -634,7 +642,18 @@ const Game = ({ roomData }) => {
         const mCanvas = minimapCanvasRef.current;
         if (mCanvas && gameState) {
           const mCtx = mCanvas.getContext('2d');
-          const mSize = 160, mScale = mSize / MAZE_WIDTH;
+          const dpr = window.devicePixelRatio || 1;
+          const mSize = 160;
+          
+          if (mCanvas.width !== Math.floor(mSize * dpr) || mCanvas.height !== Math.floor(mSize * dpr)) {
+            mCanvas.width = Math.floor(mSize * dpr);
+            mCanvas.height = Math.floor(mSize * dpr);
+            mCanvas.style.width = `${mSize}px`;
+            mCanvas.style.height = `${mSize}px`;
+          }
+          mCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+          const mScale = mSize / MAZE_WIDTH;
           mCtx.clearRect(0,0,mSize,mSize);
           
           const currentMaze = gameState.maze || MAZE_MAP;

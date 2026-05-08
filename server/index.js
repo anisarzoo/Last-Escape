@@ -198,6 +198,7 @@ io.on('connection', (socket) => {
         zoneRadius: Math.sqrt((MAZE_WIDTH / 2) ** 2 + (MAZE_HEIGHT / 2) ** 2) + 200, // Cover all corners + margin
         zoneRemoved: false,
         startTime: null,
+        keyPickupTime: null,
         status: 'waiting'
       };
     }
@@ -519,12 +520,22 @@ function updateRoom(roomId) {
     if (isWall || isWeakWall) {
       if (isWeakWall) {
         const wallKey = `${nextTileY},${nextTileX}`;
-        if (!room.weakWallsHP[wallKey]) room.weakWallsHP[wallKey] = 100;
-        room.weakWallsHP[wallKey] -= 25; // 4 shots to break
         
-        if (room.weakWallsHP[wallKey] <= 0) {
-          room.maze[nextTileY][nextTileX] = 0;
-          io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'wall-break' });
+        // Cooldown logic: If key was picked up < 30s ago, walls are invulnerable
+        const now = Date.now();
+        const isLocked = room.key.carrierId && room.keyPickupTime && (now - room.keyPickupTime < 30000);
+        
+        if (!isLocked) {
+          if (!room.weakWallsHP[wallKey]) room.weakWallsHP[wallKey] = 100;
+          room.weakWallsHP[wallKey] -= 25; // 4 shots to break
+          
+          if (room.weakWallsHP[wallKey] <= 0) {
+            room.maze[nextTileY][nextTileX] = 0;
+            io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'wall-break' });
+          }
+        } else {
+          // Optional: sound for invulnerable hit
+          io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'ricochet' });
         }
         room.bullets.splice(i, 1);
         continue;
@@ -609,6 +620,7 @@ function updateRoom(roomId) {
         p.isCarryingKey = true;
         room.key.carrierId = pId;
         room.lastKeyUpdate = now;
+        room.keyPickupTime = now; // Start the 30s exit wall cooldown
         io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'pickup' });
         break;
       }
@@ -671,6 +683,7 @@ function updateRoom(roomId) {
       room.key.carrierId = null;
       room.keyHoldTime = 0;
       room.lastKeyUpdate = null;
+      room.keyPickupTime = null; // Reset lockout if key is dropped
     }
   }
 

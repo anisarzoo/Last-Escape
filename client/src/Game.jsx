@@ -102,6 +102,18 @@ const playSpatial = (x, y, type, listenerPos) => {
     noise.start(now);
     noise.stop(now + 0.2);
   }
+  else if (type === 'zone-removed') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(100, now);
+    osc.frequency.exponentialRampToValueAtTime(10, now + 1.5);
+    
+    osc.connect(gain);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+    osc.start(now);
+    osc.stop(now + 1.5);
+  }
 };
 
 const drawKey = (ctx, x, y, pulse) => {
@@ -150,6 +162,18 @@ const Game = ({ roomData, playerName }) => {
   const dashCooldownRef = useRef(0);
   const dashTimeRef = useRef(0);
   const particlesRef = useRef([]);
+  const lastEmitTimeRef = useRef(0);
+  const localBulletsRef = useRef([]);
+  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+  // Handle Resize
+  useEffect(() => {
+    const handleResize = () => {
+      setDimensions({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const createParticles = (x, y, color, count = 10, speed = 2, life = 1) => {
     for (let i = 0; i < count; i++) {
@@ -176,6 +200,7 @@ const Game = ({ roomData, playerName }) => {
       if (data.type === 'hit') createParticles(data.x, data.y, '#f43f5e', 12, 4);
       if (data.type === 'shoot') createParticles(data.x, data.y, '#fbbf24', 5, 2);
       if (data.type === 'dash') createParticles(data.x, data.y, '#6366f1', 15, 3);
+      if (data.type === 'zone-removed') createParticles(data.x, data.y, '#f43f5e', 30, 8, 2);
     };
     socket.on('play-sound', handleSound);
     return () => socket.off('play-sound', handleSound);
@@ -201,6 +226,12 @@ const Game = ({ roomData, playerName }) => {
     const gameLoop = (time) => {
       const dt = Math.min(2, (time - lastTime) / 16.66);
       lastTime = time;
+
+      // Update Local Bullets (Smoothing)
+      localBulletsRef.current.forEach(b => {
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+      });
 
       // 1. PHYSICS & INPUT
       if (!gameOver) {
@@ -279,8 +310,12 @@ const Game = ({ roomData, playerName }) => {
         const angleChanged = Math.abs(angleDiff) > 0.01;
         if (px !== posRef.current.x || py !== posRef.current.y || angleChanged) {
           posRef.current = { x: px, y: py };
-          // aimAngleRef was already updated by interpolation above
-          socket.emit('player-move', { x: px, y: py, aimAngle: aimAngleRef.current });
+          
+          // Throttle socket emissions to ~30Hz
+          if (now - lastEmitTimeRef.current > 30) {
+            socket.emit('player-move', { x: px, y: py, aimAngle: aimAngleRef.current });
+            lastEmitTimeRef.current = now;
+          }
         }
 
         if (keys[' '] && now - shootCooldownRef.current > 500) {
@@ -295,7 +330,14 @@ const Game = ({ roomData, playerName }) => {
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext('2d');
-        const { width, height } = canvas;
+        const { width, height } = dimensions;
+        
+        // Sync canvas size if needed (handled by state but double check)
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+
         ctx.fillStyle = '#020617';
         ctx.fillRect(0, 0, width, height);
 
@@ -393,7 +435,8 @@ const Game = ({ roomData, playerName }) => {
         });
 
         if (gameState) {
-          gameState.bullets.forEach(b => {
+          // Render Smoothed Bullets
+          localBulletsRef.current.forEach(b => {
             ctx.fillStyle = '#fde047'; ctx.shadowBlur = 10; ctx.shadowColor = '#fde047';
             ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
           });
@@ -597,7 +640,32 @@ const Game = ({ roomData, playerName }) => {
       }
     });
 
-    socket.on('game-state', setGameState);
+    socket.on('game-state', (state) => {
+      setGameState(state);
+      
+      // Sync local bullets with server state
+      const serverBulletIds = new Set(state.bullets.map(b => b.id));
+      
+      // Remove dead bullets
+      localBulletsRef.current = localBulletsRef.current.filter(b => serverBulletIds.has(b.id));
+      
+      // Update/Add bullets
+      state.bullets.forEach(sb => {
+        const lb = localBulletsRef.current.find(b => b.id === sb.id);
+        if (lb) {
+          // Snap to server if too far, otherwise keep local for smoothness
+          const dist = Math.sqrt((lb.x - sb.x)**2 + (lb.y - sb.y)**2);
+          if (dist > 30) {
+            lb.x = sb.x;
+            lb.y = sb.y;
+          }
+          lb.vx = sb.vx;
+          lb.vy = sb.vy;
+        } else {
+          localBulletsRef.current.push({ ...sb });
+        }
+      });
+    });
     socket.on('game-over', setGameOver);
 
     return () => {

@@ -73,7 +73,7 @@ io.on('connection', (socket) => {
     rooms[roomId].players.push(socket.id);
     io.to(roomId).emit('room-update', {
       ...rooms[roomId],
-      players: rooms[roomId].players.map(id => players[id])
+      players: rooms[roomId].players.map(id => players[id]).filter(Boolean)
     });
     console.log(`${playerName} joined room ${roomId}`);
   });
@@ -232,9 +232,10 @@ function updateRoom(roomId) {
   if (!room.key.carrierId && !room.zoneRemoved) {
     const shrinkPerTick = 0.1;
     room.zoneRadius = Math.max(0, room.zoneRadius - shrinkPerTick);
-  } else {
+  } else if (!room.zoneRemoved) {
     room.zoneRemoved = true;
     room.zoneRadius = 99999;
+    io.to(roomId).emit('play-sound', { x: MAZE_WIDTH/2, y: MAZE_HEIGHT/2, type: 'zone-removed' });
   }
 
   // Update Bullets

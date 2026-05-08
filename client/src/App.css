@@ -727,7 +727,6 @@ button:disabled {
 }
 
 .match-stats th {
-  text-align: left;
   padding: 1.25rem 1rem;
   font-size: 0.75rem;
   letter-spacing: 0.2em;
@@ -738,8 +737,8 @@ button:disabled {
 }
 
 /* Specific column alignments */
-.match-stats th:nth-child(n+2),
-.match-stats td:nth-child(n+2) {
+.match-stats th,
+.match-stats td {
   text-align: center;
 }
 

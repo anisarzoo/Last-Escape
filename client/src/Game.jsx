@@ -258,10 +258,31 @@ const Game = ({ roomData, playerName }) => {
       const dt = Math.min(2, (time - lastTime) / 16.66);
       lastTime = time;
 
-      // Update Local Bullets (Smoothing)
+      // Update Local Bullets (Smoothing with Collision)
       localBulletsRef.current.forEach(b => {
-        b.x += b.vx * dt;
-        b.y += b.vy * dt;
+        const nextX = b.x + b.vx * dt;
+        const nextY = b.y + b.vy * dt;
+        const nextTileX = Math.floor(nextX / TILE_SIZE);
+        const nextTileY = Math.floor(nextY / TILE_SIZE);
+        const isWall = MAZE_MAP[nextTileY]?.[nextTileX] === 1;
+
+        if (isWall) {
+          if (b.bounces > 0) {
+            const curTileX = Math.floor(b.x / TILE_SIZE);
+            const curTileY = Math.floor(b.y / TILE_SIZE);
+            let bounced = false;
+            if (MAZE_MAP[curTileY]?.[nextTileX] === 1) { b.vx *= -1; bounced = true; }
+            if (MAZE_MAP[nextTileY]?.[curTileX] === 1) { b.vy *= -1; bounced = true; }
+            if (!bounced) { b.vx *= -1; b.vy *= -1; }
+            b.bounces--;
+          } else {
+            // Mark for removal or just stop moving (server will sync soon)
+            b.vx = 0; b.vy = 0;
+          }
+        } else {
+          b.x = nextX;
+          b.y = nextY;
+        }
       });
 
       // 1. PHYSICS & INPUT

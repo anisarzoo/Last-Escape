@@ -215,10 +215,10 @@ const Game = ({ roomData, playerName }) => {
         createParticles(data.x, data.y, '#f43f5e', 12, 4);
         setScreenShake(Date.now());
       }
-      if (data.type === 'shoot') createParticles(data.x, data.y, '#fbbf24', 5, 2);
+      if (data.type === 'shoot') createParticles(data.x, data.y, 'rgba(147, 197, 253, 0.5)', 3, 1, 0.2);
       if (data.type === 'dash') createParticles(data.x, data.y, '#6366f1', 15, 3);
       if (data.type === 'zone-removed') createParticles(data.x, data.y, '#f43f5e', 30, 8, 2);
-      if (data.type === 'ricochet') createParticles(data.x, data.y, '#fde047', 8, 3, 0.5);
+      if (data.type === 'ricochet') createParticles(data.x, data.y, '#fff', 6, 2, 0.3);
     };
     socket.on('play-sound', handleSound);
 

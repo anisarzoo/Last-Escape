@@ -153,7 +153,7 @@ io.on('connection', (socket) => {
           vy: Math.sin(player.aimAngle) * 15,
           range: player.range * TILE_SIZE,
           distanceTraveled: 0,
-          bounces: 1
+          bounces: 2
         };
         room.bullets.push(bullet);
         io.to(player.roomId).emit('play-sound', { x: player.x, y: player.y, type: 'shoot' });
@@ -242,13 +242,6 @@ function updateRoom(roomId) {
   // Update Bullets
   for (let i = room.bullets.length - 1; i >= 0; i--) {
     const b = room.bullets[i];
-    b.x += b.vx;
-    b.y += b.vy;
-    b.distanceTraveled += Math.sqrt(b.vx**2 + b.vy**2);
-
-    const tileX = Math.floor(b.x / TILE_SIZE);
-    const tileY = Math.floor(b.y / TILE_SIZE);
-    
     const nextX = b.x + b.vx;
     const nextY = b.y + b.vy;
     const nextTileX = Math.floor(nextX / TILE_SIZE);
@@ -259,27 +252,32 @@ function updateRoom(roomId) {
     if (isWall) {
       if (b.bounces > 0) {
         let bounced = false;
-        if (MAZE_MAP[tileY] && MAZE_MAP[tileY][nextTileX] === 1) {
+        // Check which axis was hit specifically at the 'next' step
+        const currentTileX = Math.floor(b.x / TILE_SIZE);
+        const currentTileY = Math.floor(b.y / TILE_SIZE);
+
+        if (MAZE_MAP[currentTileY] && MAZE_MAP[currentTileY][nextTileX] === 1) {
           b.vx *= -1;
           bounced = true;
         }
-        if (MAZE_MAP[nextTileY] && MAZE_MAP[nextTileY][tileX] === 1) {
+        if (MAZE_MAP[nextTileY] && MAZE_MAP[nextTileY][currentTileX] === 1) {
           b.vy *= -1;
           bounced = true;
         }
         
-        // Safety for perfect corner/diagonal hits
-        if (!bounced) {
-          b.vx *= -1;
-          b.vy *= -1;
-        }
+        if (!bounced) { b.vx *= -1; b.vy *= -1; }
         
         b.bounces--;
         io.to(roomId).emit('play-sound', { x: b.x, y: b.y, type: 'ricochet' });
+        // Don't advance position on the bounce frame to prevent phasing
       } else {
         room.bullets.splice(i, 1);
         continue;
       }
+    } else {
+      b.x = nextX;
+      b.y = nextY;
+      b.distanceTraveled += Math.sqrt(b.vx**2 + b.vy**2);
     }
 
     if (b.distanceTraveled > b.range) {

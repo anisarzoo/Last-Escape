@@ -170,14 +170,12 @@ io.on('connection', (socket) => {
           if (dist < 40) { // Collision radius
             target.hp -= 10;
             
-            // Push in the direction of the dash (More physical feel)
-            const kbForce = 35;
+            // Pure velocity impulse (No snapping for smoothness)
+            const kbForce = 15; // Adjusted for purely velocity-based push
             const kx = Math.cos(dashAngle) * kbForce;
             const ky = Math.sin(dashAngle) * kbForce;
             
-            moveSafely(target, kx, ky);
-            
-            io.to(player.roomId).emit('player-knockback', { id: pId, x: target.x, y: target.y, vx: kx, vy: ky });
+            io.to(player.roomId).emit('player-knockback', { id: pId, vx: kx, vy: ky });
             io.to(player.roomId).emit('play-sound', { x: target.x, y: target.y, type: 'dash-hit' });
             
             player.isDashing = false; // End dash on hit
@@ -372,14 +370,13 @@ function updateRoom(roomId) {
         const damage = wasCarrier ? 15 : 20; 
         p.hp -= damage;
         
-        // Apply Knockback (Collision Safe)
-        const kbForce = 15;
+        // Apply Knockback (Pure Velocity)
+        const kbForce = 10;
         const angle = Math.atan2(b.vy, b.vx);
         const kx = Math.cos(angle) * kbForce;
         const ky = Math.sin(angle) * kbForce;
         
-        moveSafely(p, kx, ky);
-        io.to(roomId).emit('player-knockback', { id: pId, x: p.x, y: p.y, vx: kx, vy: ky });
+        io.to(roomId).emit('player-knockback', { id: pId, vx: kx, vy: ky });
 
         room.bullets.splice(i, 1);
         io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'hit' });

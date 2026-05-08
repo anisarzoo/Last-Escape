@@ -240,8 +240,8 @@ const Game = ({ roomData, playerName }) => {
 
     const handleKnockback = (data) => {
       if (data.id === socket.id) {
-        posRef.current = { x: data.x, y: data.y };
-        velRef.current = { x: data.vx, y: data.vy };
+        velRef.current.x += data.vx;
+        velRef.current.y += data.vy;
         setScreenShake(Date.now());
       }
     };

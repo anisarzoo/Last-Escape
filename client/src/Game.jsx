@@ -189,6 +189,7 @@ const Game = ({ roomData, playerName }) => {
   const particlesRef = useRef([]);
   const lastEmitTimeRef = useRef(0);
   const velRef = useRef({ x: 0, y: 0 });
+  const smoothedPlayersRef = useRef({}); // { id: { x, y, vx, vy } }
   const localBulletsRef = useRef([]);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
@@ -239,6 +240,12 @@ const Game = ({ roomData, playerName }) => {
     socket.on('play-sound', handleSound);
 
     const handleKnockback = (data) => {
+      // Apply to smoothed copy for immediate visual feedback
+      if (smoothedPlayersRef.current[data.id]) {
+        smoothedPlayersRef.current[data.id].vx += data.vx;
+        smoothedPlayersRef.current[data.id].vy += data.vy;
+      }
+      
       if (data.id === socket.id) {
         velRef.current.x += data.vx;
         velRef.current.y += data.vy;
@@ -273,6 +280,29 @@ const Game = ({ roomData, playerName }) => {
     const gameLoop = (time) => {
       const dt = Math.min(2, (time - lastTime) / 16.66);
       lastTime = time;
+
+      // Update Smoothed Players
+      if (gameState) {
+        gameState.players.forEach(p => {
+          if (p.id === socket.id) return;
+          if (!smoothedPlayersRef.current[p.id]) {
+            smoothedPlayersRef.current[p.id] = { x: p.x, y: p.y, vx: 0, vy: 0 };
+          }
+          const sp = smoothedPlayersRef.current[p.id];
+          
+          // Friction for smoothed velocity
+          sp.vx *= 0.88;
+          sp.vy *= 0.88;
+          
+          // Integrate velocity
+          sp.x += sp.vx * dt;
+          sp.y += sp.vy * dt;
+          
+          // Lerp towards server position (Soft sync)
+          sp.x += (p.x - sp.x) * 0.3;
+          sp.y += (p.y - sp.y) * 0.3;
+        });
+      }
 
       // Update Local Bullets (Smoothing with Collision)
       localBulletsRef.current.forEach(b => {
@@ -557,8 +587,9 @@ const Game = ({ roomData, playerName }) => {
             if (p.hp <= 0) return;
             ctx.save();
             const isMe = p.id === socket.id;
-            const px = isMe ? curX : p.x;
-            const py = isMe ? curY : p.y;
+            const sp = smoothedPlayersRef.current[p.id];
+            const px = isMe ? curX : (sp ? sp.x : p.x);
+            const py = isMe ? curY : (sp ? sp.y : p.y);
             const pAngle = isMe ? aimAngleRef.current : (p.aimAngle || 0);
             ctx.translate(px, py);
 

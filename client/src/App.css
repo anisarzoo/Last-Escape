@@ -728,12 +728,24 @@ button:disabled {
 
 .match-stats th {
   text-align: left;
-  padding: 1rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.15em;
+  padding: 1.25rem 1rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
   color: var(--text-dim);
   border-bottom: 1px solid var(--glass-border);
   text-transform: uppercase;
+  font-weight: 800;
+}
+
+/* Specific column alignments */
+.match-stats th:nth-child(n+2),
+.match-stats td:nth-child(n+2) {
+  text-align: center;
+}
+
+.match-stats th:first-child,
+.match-stats td:first-child {
+  width: 40%;
 }
 
 .match-stats td {

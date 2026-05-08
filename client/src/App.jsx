@@ -140,7 +140,8 @@ function App() {
                 type="text"
                 placeholder="Enter Room ID"
                 value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
+                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+                className="room-id-input"
               />
               <button onClick={handleJoin} disabled={!playerName || !roomId}>
                 Join Room

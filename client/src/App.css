@@ -243,6 +243,13 @@ input:focus {
   box-shadow: 0 0 0 4px var(--primary-glow);
 }
 
+.room-id-input {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.15rem;
+  text-align: center;
+}
+
 button {
   background: var(--primary);
   color: white;

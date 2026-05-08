@@ -285,7 +285,7 @@ io.on('connection', (socket) => {
       ];
 
       let canMove = true;
-      const isCurrentlyInExit = room.maze[Math.floor(player.y / TILE_SIZE)]?.[Math.floor(player.x / TILE_SIZE)] === 2;
+      const isCurrentlyInExit = points.some(p => room.maze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)] === 2);
 
       for (const p of points) {
         const tileX = Math.floor(p.x / TILE_SIZE);

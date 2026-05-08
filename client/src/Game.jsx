@@ -450,7 +450,8 @@ const Game = ({ roomData }) => {
         
         if (canX) {
           const currentMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
-          const isCurrentlyInExit = currentMaze[Math.floor(py/TILE_SIZE)]?.[Math.floor(px/TILE_SIZE)] === 2;
+          const curPts = [{x:px-r,y:py-r},{x:px+r,y:py-r},{x:px-r,y:py+r},{x:px+r,y:py+r}];
+          const isCurrentlyInExit = curPts.some(p => currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)] === 2);
           const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
           for(let p of xPts) {
             const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
@@ -468,7 +469,8 @@ const Game = ({ roomData }) => {
 
         if (canY) {
           const currentMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
-          const isCurrentlyInExit = currentMaze[Math.floor(py/TILE_SIZE)]?.[Math.floor(px/TILE_SIZE)] === 2;
+          const curPts = [{x:px-r,y:py-r},{x:px+r,y:py-r},{x:px-r,y:py+r},{x:px+r,y:py+r}];
+          const isCurrentlyInExit = curPts.some(p => currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)] === 2);
           const yPts = [{x:px-r,y:ty-r},{x:px+r,y:ty-r},{x:px-r,y:ty+r},{x:px+r,y:ty+r}];
           for(let p of yPts) {
             const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];

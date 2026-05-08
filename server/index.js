@@ -22,6 +22,33 @@ const PORT = process.env.PORT || 3001;
 const players = {};
 const rooms = {};
 
+// Helper to move player safely (collision aware)
+function moveSafely(p, dx, dy) {
+  const r = 14;
+  let newX = p.x + dx;
+  let newY = p.y + dy;
+
+  const checkWall = (tx, ty) => {
+    const pts = [
+      { x: tx - r, y: ty - r },
+      { x: tx + r, y: ty - r },
+      { x: tx - r, y: ty + r },
+      { x: tx + r, y: ty + r }
+    ];
+    for (const pt of pts) {
+      const tileX = Math.floor(pt.x / TILE_SIZE);
+      const tileY = Math.floor(pt.y / TILE_SIZE);
+      if (MAZE_MAP[tileY] && MAZE_MAP[tileY][tileX] === 1) return true;
+    }
+    return false;
+  };
+
+  // Try X
+  if (!checkWall(newX, p.y)) p.x = newX;
+  // Try Y
+  if (!checkWall(p.x, newY)) p.y = newY;
+}
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
@@ -138,8 +165,9 @@ io.on('connection', (socket) => {
             const angle = Math.atan2(target.y - player.y, target.x - player.x);
             const kx = Math.cos(angle) * 25;
             const ky = Math.sin(angle) * 25;
-            target.x += kx;
-            target.y += ky;
+            
+            // Apply collision-safe knockback
+            moveSafely(target, kx, ky);
             
             io.to(player.roomId).emit('player-knockback', { id: pId, x: target.x, y: target.y, vx: kx, vy: ky });
             io.to(player.roomId).emit('play-sound', { x: target.x, y: target.y, type: 'dash-hit' });
@@ -336,13 +364,13 @@ function updateRoom(roomId) {
         const damage = wasCarrier ? 15 : 20; 
         p.hp -= damage;
         
-        // Apply Knockback
+        // Apply Knockback (Collision Safe)
         const kbForce = 15;
         const angle = Math.atan2(b.vy, b.vx);
         const kx = Math.cos(angle) * kbForce;
         const ky = Math.sin(angle) * kbForce;
-        p.x += kx;
-        p.y += ky;
+        
+        moveSafely(p, kx, ky);
         io.to(roomId).emit('player-knockback', { id: pId, x: p.x, y: p.y, vx: kx, vy: ky });
 
         room.bullets.splice(i, 1);

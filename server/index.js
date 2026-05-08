@@ -136,6 +136,7 @@ function applyElimination(room, victim, killerId) {
       killer.score += 1;
       killer.range = Math.min(8, killer.range + 1);
       victim.killedBy = killer.id;
+      killer.hp = Math.min(100, killer.hp + 25);
       if (wasCarrier) {
         killer.hp = Math.min(100, killer.hp + 50);
       }

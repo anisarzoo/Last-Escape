@@ -162,25 +162,31 @@ function App() {
             <h4>ADVANCED PROTOCOLS</h4>
             <button className="rules-close-btn" onClick={() => setShowRules(false)}>&times;</button>
           </div>
-          <div className="rules-section">
-            <h5>Gate Lockdown</h5>
-            <p>Exit gates are <span>biometrically locked</span>. You must secure the <span>Master Key</span> and hold it for <span>60 seconds</span> to override the lockdown and open the exits.</p>
-          </div>
-          <div className="rules-section">
-            <h5>Neural Siphon</h5>
-            <p>The key holder <span>drains health</span> from all opponents. Siphon intensity <span>doubles</span> after 60 seconds of possession.</p>
-          </div>
-          <div className="rules-section">
-            <h5>Biometric Shield</h5>
-            <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>25%</span>.</p>
-          </div>
-          <div className="rules-section">
-            <h5>Combat Siphon</h5>
-            <p>Every elimination restores <span>25% HP</span> and permanently boosts your <span>Weapon Range</span>.</p>
-          </div>
-          <div className="rules-section">
-            <h5>Atmospheric Collapse</h5>
-            <p>The <span>Safe Zone</span> shrinks until the <span>Master Key</span> is secured. Once captured, the zone stabilizes.</p>
+          <div className="rules-grid">
+            <div className="rules-section">
+              <h5>Gate Lockdown</h5>
+              <p>Exit gates are <span>biometrically locked</span>. You must secure the <span>Master Key</span> and hold it for <span>60 seconds</span> to override the lockdown and open the exits.</p>
+            </div>
+            <div className="rules-section">
+              <h5>Neural Siphon</h5>
+              <p>The key holder <span>drains health</span> from all opponents. Siphon intensity <span>doubles</span> after 60 seconds of possession.</p>
+            </div>
+            <div className="rules-section">
+              <h5>Biometric Shield</h5>
+              <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>25%</span>.</p>
+            </div>
+            <div className="rules-section">
+              <h5>Combat Siphon</h5>
+              <p>Every elimination restores <span>25% HP</span> and permanently boosts your <span>Weapon Range</span>.</p>
+            </div>
+            <div className="rules-section">
+              <h5>Atmospheric Collapse</h5>
+              <p>The <span>Safe Zone</span> shrinks until the <span>Master Key</span> is secured. Once captured, the zone stabilizes.</p>
+            </div>
+            <div className="rules-section">
+              <h5>Arena Lock</h5>
+              <p>Walls are <span>structurally reinforced</span> and invulnerable for the first <span>30 seconds</span> of the mission.</p>
+            </div>
           </div>
         </div>
 
@@ -344,7 +350,7 @@ function App() {
                 <Trophy className="htp-icon" />
                 <h3>OBJECTIVE</h3>
               </div>
-              <p>Secure the <span>MASTER KEY</span> and reach an <span>EXIT</span>, or eliminate all opponents to be the last survivor.</p>
+              <p>Secure the <span>MASTER KEY</span> and reach an <span>EXIT</span> (or cross the perimeter), or eliminate all opponents to be the last survivor.</p>
             </div>
             
             <div className="htp-column">
@@ -353,10 +359,12 @@ function App() {
                 <h3>MECHANICS</h3>
               </div>
               <ul>
+                <li><span>LOCKDOWN</span>: Hold the Master Key for 60s to unlock the exits.</li>
                 <li><span>DRAIN</span>: The key carrier siphons health from opponents (intensity doubles after 60s).</li>
                 <li><span>SHIELD</span>: Holding the Master Key reduces incoming bullet damage by 25%.</li>
-                <li><span>REWARD</span>: Eliminating opponents restores HP and boosts weapon range.</li>
+                <li><span>REWARD</span>: Eliminating opponents restores 25% HP and boosts weapon range.</li>
                 <li><span>ZONE</span>: The safe zone shrinks continuously until the key is secured.</li>
+                <li><span>ARENA</span>: Walls are invulnerable for the first 30s of the mission.</li>
               </ul>
             </div>
             

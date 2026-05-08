@@ -147,6 +147,9 @@ io.on('connection', (socket) => {
         }
       }
       
+      const oldX = player.x;
+      const oldY = player.y;
+
       if (canMove) {
         player.x = movement.x;
         player.y = movement.y;
@@ -154,6 +157,10 @@ io.on('connection', (socket) => {
       
       // Dash Collision Check
       if (player.isDashing) {
+        const dashDx = player.x - oldX;
+        const dashDy = player.y - oldY;
+        const dashAngle = Math.atan2(dashDy, dashDx);
+
         for (const pId of room.players) {
           if (pId === socket.id) continue;
           const target = players[pId];
@@ -162,11 +169,12 @@ io.on('connection', (socket) => {
           const dist = Math.sqrt((player.x - target.x)**2 + (player.y - target.y)**2);
           if (dist < 40) { // Collision radius
             target.hp -= 10;
-            const angle = Math.atan2(target.y - player.y, target.x - player.x);
-            const kx = Math.cos(angle) * 25;
-            const ky = Math.sin(angle) * 25;
             
-            // Apply collision-safe knockback
+            // Push in the direction of the dash (More physical feel)
+            const kbForce = 35;
+            const kx = Math.cos(dashAngle) * kbForce;
+            const ky = Math.sin(dashAngle) * kbForce;
+            
             moveSafely(target, kx, ky);
             
             io.to(player.roomId).emit('player-knockback', { id: pId, x: target.x, y: target.y, vx: kx, vy: ky });

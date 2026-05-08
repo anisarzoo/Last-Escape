@@ -172,6 +172,7 @@ const Game = ({ roomData }) => {
   const lastEmitTimeRef = useRef(0);
   const velRef = useRef({ x: 0, y: 0 });
   const smoothedPlayersRef = useRef({});
+  const smoothedCameraRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
   const localBulletsRef = useRef([]);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [isMobile, setIsMobile] = useState(false);
@@ -315,7 +316,8 @@ const Game = ({ roomData }) => {
           const sp = smoothedPlayersRef.current[p.id];
           sp.vx *= 0.88; sp.vy *= 0.88;
           sp.x += sp.vx * dt; sp.y += sp.vy * dt;
-          sp.x += (p.x - sp.x) * 0.3; sp.y += (p.y - sp.y) * 0.3;
+          sp.x += (p.x - sp.x) * 0.2 * dt; // Smoother player interpolation
+          sp.y += (p.y - sp.y) * 0.2 * dt;
         });
       }
 
@@ -470,7 +472,11 @@ const Game = ({ roomData }) => {
         if (activeSpectating && gameState) {
           const targetId = spectateTarget?.id || spectateTargetId;
           const targetPlayer = gameState.players.find((p) => p.id === targetId && p.hp > 0);
-          if (targetPlayer) { targetX = targetPlayer.x; targetY = targetPlayer.y; }
+          if (targetPlayer) { 
+            const sp = smoothedPlayersRef.current[targetPlayer.id];
+            targetX = sp ? sp.x : targetPlayer.x; 
+            targetY = sp ? sp.y : targetPlayer.y; 
+          }
           else {
             let closest = null, minDist = Infinity;
             gameState.players.forEach(p => {
@@ -479,12 +485,20 @@ const Game = ({ roomData }) => {
                 if (d < minDist) { minDist = d; closest = p; }
               }
             });
-            if (closest) { targetX = closest.x; targetY = closest.y; }
+            if (closest) { 
+              const sp = smoothedPlayersRef.current[closest.id];
+              targetX = sp ? sp.x : closest.x; 
+              targetY = sp ? sp.y : closest.y; 
+            }
             else { targetX = MAZE_WIDTH / 2; targetY = MAZE_HEIGHT / 2; }
           }
         }
 
-        const camX = width / 2 - targetX, camY = height / 2 - targetY;
+        // Camera Smoothing
+        smoothedCameraRef.current.x += (targetX - smoothedCameraRef.current.x) * 0.12;
+        smoothedCameraRef.current.y += (targetY - smoothedCameraRef.current.y) * 0.12;
+
+        const camX = width / 2 - smoothedCameraRef.current.x, camY = height / 2 - smoothedCameraRef.current.y;
         ctx.save();
         if (Date.now() - screenShake < 200) {
           const intensity = 8 * (1 - (Date.now() - screenShake) / 200);

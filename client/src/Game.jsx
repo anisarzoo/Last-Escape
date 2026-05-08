@@ -420,24 +420,39 @@ const Game = ({ roomData }) => {
         const r = 14;
         let px = posRef.current.x, py = posRef.current.y;
 
+        const isExitLocked = gameState?.pickupLockoutRemaining > 0;
+
         let tx = px + dx;
         if (dy !== 0 && dx === 0) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.15;
         let canX = true;
-        const currentMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
-        const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
-        for(let p of xPts) {
-          const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
-          if(tile === 1 || tile === 3) { canX=false; break; }
+        
+        // World Boundary Check (Locked while lockout active)
+        if (isExitLocked && (tx < r || tx > MAZE_WIDTH - r)) canX = false;
+        
+        if (canX) {
+          const currentMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
+          const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
+          for(let p of xPts) {
+            const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
+            if(tile === 1 || tile === 3) { canX=false; break; }
+          }
         }
         if(canX) px = tx; else velRef.current.x = 0;
 
         let ty = py + dy;
         if (dx !== 0 && dy === 0) ty += ((Math.floor(py / TILE_SIZE) + 0.5) * TILE_SIZE - py) * 0.15;
         let canY = true;
-        const yPts = [{x:px-r,y:ty-r},{x:px+r,y:ty-r},{x:px-r,y:ty+r},{x:px+r,y:ty+r}];
-        for(let p of yPts) {
-          const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
-          if(tile === 1 || tile === 3) { canY=false; break; }
+
+        // World Boundary Check (Locked while lockout active)
+        if (isExitLocked && (ty < r || ty > MAZE_HEIGHT - r)) canY = false;
+
+        if (canY) {
+          const currentMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
+          const yPts = [{x:px-r,y:ty-r},{x:px+r,y:ty-r},{x:px-r,y:ty+r},{x:px+r,y:ty+r}];
+          for(let p of yPts) {
+            const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
+            if(tile === 1 || tile === 3) { canY=false; break; }
+          }
         }
         if(canY) py = ty; else velRef.current.y = 0;
 
@@ -945,6 +960,11 @@ const Game = ({ roomData }) => {
           <Key size={20} className="lock-icon" />
           <span>
             {gameState.players.find(p => p.id === gameState.key.carrierId)?.name.toUpperCase()} HAS THE KEY
+            {gameState.pickupLockoutRemaining > 0 && (
+              <span style={{ color: '#f43f5e', marginLeft: '10px', fontWeight: 900 }}>
+                — EXITS LOCKED: {gameState.pickupLockoutRemaining}s
+              </span>
+            )}
           </span>
         </div>
       ) : null}

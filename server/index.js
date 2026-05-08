@@ -487,6 +487,7 @@ function startGameLoop(roomId) {
       keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,
       exitLockoutRemaining: room.startTime ? Math.max(0, 30 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
+      pickupLockoutRemaining: (room.key.carrierId && room.keyPickupTime) ? Math.max(0, 60 - Math.floor((Date.now() - room.keyPickupTime) / 1000)) : 0,
       maze: room.maze, // Send dynamic maze state
       time: Math.floor((Date.now() - room.startTime) / 1000)
     });
@@ -663,21 +664,10 @@ function updateRoom(roomId) {
       const onExitTile = MAZE_MAP[tileY] && MAZE_MAP[tileY][tileX] === 2;
       const isOutside = carrier.x < -20 || carrier.x > MAZE_WIDTH + 20 || carrier.y < -20 || carrier.y > MAZE_HEIGHT + 20;
 
-      if (onExitTile || isOutside) {
-        const winnerTeamId = room.isTeamMode ? carrier.teamId : null;
-        const roomPlayers = getRoomPlayers(room);
-        io.to(roomId).emit('game-over', { 
-          winner: getWinnerLabel(room, carrier),
-          winnerTeamId,
-          stats: roomPlayers.map((p) => ({
-            name: p.name,
-            teamId: p.teamId || null,
-            score: p.score,
-            holdTime: Math.floor(p.totalKeyHoldTime || 0),
-            isWinner: room.isTeamMode ? p.teamId === winnerTeamId : p.id === room.key.carrierId
-          }))
-        });
-        delete rooms[roomId];
+      const isExitLocked = room.keyPickupTime && (now - room.keyPickupTime < 60000);
+      
+      if ((onExitTile || isOutside) && !isExitLocked) {
+        endGame(room, carrier);
         return;
       }
     } else {
@@ -704,4 +694,42 @@ function updateRoom(roomId) {
       }
     }
   }
+
+  // Last Man Standing Check
+  const alivePlayers = room.players.map(id => players[id]).filter(p => p && p.hp > 0);
+  if (room.players.length > 1) { // Only check if the game started with multiple players
+    if (room.isTeamMode) {
+      const aliveTeams = new Set(alivePlayers.map(p => p.teamId));
+      if (aliveTeams.size === 1) {
+        const winningTeamId = Array.from(aliveTeams)[0];
+        const winner = alivePlayers.find(p => p.teamId === winningTeamId);
+        endGame(room, winner);
+        return;
+      }
+    } else {
+      if (alivePlayers.length === 1) {
+        endGame(room, alivePlayers[0]);
+        return;
+      }
+    }
+  }
+}
+
+function endGame(room, winner) {
+  const roomId = room.id;
+  const winnerTeamId = room.isTeamMode ? (winner?.teamId || null) : null;
+  const roomPlayers = getRoomPlayers(room);
+  
+  io.to(roomId).emit('game-over', { 
+    winner: getWinnerLabel(room, winner),
+    winnerTeamId,
+    stats: roomPlayers.map((p) => ({
+      name: p.name,
+      teamId: p.teamId || null,
+      score: p.score,
+      holdTime: Math.floor(p.totalKeyHoldTime || 0),
+      isWinner: room.isTeamMode ? (p.teamId === winnerTeamId && winnerTeamId !== null) : p.id === winner?.id
+    }))
+  });
+  delete rooms[roomId];
 }

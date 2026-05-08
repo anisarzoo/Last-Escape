@@ -324,7 +324,7 @@ function App() {
                 <div className="control-item"><span>WASD / ARROWS</span> MOVE</div>
                 <div className="control-item"><span>MOUSE</span> AIM</div>
                 <div className="control-item"><span>LEFT CLICK</span> FIRE</div>
-                <div className="control-item"><span>RIGHT CLICK</span> DASH</div>
+                <div className="control-item"><span>SHIFT</span> DASH</div>
               </div>
             </div>
           </div>

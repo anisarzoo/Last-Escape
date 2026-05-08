@@ -303,11 +303,9 @@ const Game = ({ roomData }) => {
     };
     const handleMouseDown = (e) => {
       if (e.button === 0) keysRef.current['MouseLeft'] = true;
-      if (e.button === 2) keysRef.current['MouseRight'] = true;
     };
     const handleMouseUp = (e) => {
       if (e.button === 0) keysRef.current['MouseLeft'] = false;
-      if (e.button === 2) keysRef.current['MouseRight'] = false;
     };
     const handleContextMenu = (e) => e.preventDefault();
 
@@ -375,14 +373,13 @@ const Game = ({ roomData }) => {
           createParticles(posRef.current.x, posRef.current.y, 'rgba(99, 102, 241, 0.4)', 2, 0.5, 0.5);
         }
 
-        if ((keys['Shift'] || keys['MouseRight']) && now - dashCooldownRef.current > 3000 && !isDashing) {
+        if (keys['Shift'] && now - dashCooldownRef.current > 3000 && !isDashing) {
           dashTimeRef.current = now;
           dashCooldownRef.current = now;
           socket.emit('player-dash');
           socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
           // Prevent auto-dash when holding the key/button
           keys['Shift'] = false;
-          keys['MouseRight'] = false;
         }
 
         let inputX = 0, inputY = 0;

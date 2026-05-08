@@ -594,16 +594,7 @@ const Game = ({ roomData, playerName }) => {
 
     loopId = requestAnimationFrame(gameLoop);
 
-    socket.on('player-moved', ({ id, x, y }) => {
-      if (id === socket.id) {
-        const dist = Math.sqrt((posRef.current.x - x)**2 + (posRef.current.y - y)**2);
-        // Increase threshold to 150 and disable snapping during/immediately after dash
-        const isRecentlyDashed = Date.now() - dashTimeRef.current < 500;
-        if (dist > 150 && !isRecentlyDashed) {
-          posRef.current = { x, y };
-        }
-      }
-    });
+    // player-moved listener removed to prevent packet backlog feedback loop
 
     socket.on('game-state', (state) => {
       // Check for kills
@@ -628,6 +619,17 @@ const Game = ({ roomData, playerName }) => {
       prevPlayersRef.current = state.players.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
 
       setGameState(state);
+      
+      // Authoritative server sync for local player
+      const serverMe = state.players.find(p => p.id === socket.id);
+      if (serverMe) {
+        const dist = Math.sqrt((posRef.current.x - serverMe.x)**2 + (posRef.current.y - serverMe.y)**2);
+        const isRecentlyDashed = Date.now() - dashTimeRef.current < 500;
+        if (dist > 150 && !isRecentlyDashed) {
+          posRef.current = { x: serverMe.x, y: serverMe.y };
+        }
+      }
+      
       const serverBulletIds = new Set(state.bullets.map(b => b.id));
       localBulletsRef.current = localBulletsRef.current.filter(b => serverBulletIds.has(b.id));
       state.bullets.forEach(sb => {
@@ -647,7 +649,6 @@ const Game = ({ roomData, playerName }) => {
       cancelAnimationFrame(loopId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      socket.off('player-moved');
       socket.off('game-state');
       socket.off('game-over');
     };

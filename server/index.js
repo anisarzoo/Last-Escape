@@ -212,13 +212,6 @@ io.on('connection', (socket) => {
       if (movement.aimAngle !== undefined) {
         player.aimAngle = movement.aimAngle;
       }
-
-      io.to(player.roomId).emit('player-moved', { 
-        id: socket.id, 
-        x: player.x, 
-        y: player.y, 
-        aimAngle: player.aimAngle 
-      });
     }
   });
 

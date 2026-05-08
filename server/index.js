@@ -285,6 +285,8 @@ io.on('connection', (socket) => {
       ];
 
       let canMove = true;
+      const isCurrentlyInExit = room.maze[Math.floor(player.y / TILE_SIZE)]?.[Math.floor(player.x / TILE_SIZE)] === 2;
+
       for (const p of points) {
         const tileX = Math.floor(p.x / TILE_SIZE);
         const tileY = Math.floor(p.y / TILE_SIZE);
@@ -292,7 +294,7 @@ io.on('connection', (socket) => {
         if (
           tileY >= 0 && tileY < room.maze.length &&
           tileX >= 0 && tileX < room.maze[0].length &&
-          (room.maze[tileY][tileX] === 1 || room.maze[tileY][tileX] === 3 || (room.maze[tileY][tileX] === 2 && (!room.key.carrierId || (room.keyPickupTime && (Date.now() - room.keyPickupTime < 60000)))))
+          (room.maze[tileY][tileX] === 1 || room.maze[tileY][tileX] === 3 || (room.maze[tileY][tileX] === 2 && (!room.key.carrierId || (room.keyPickupTime && (Date.now() - room.keyPickupTime < 60000))) && !isCurrentlyInExit))
         ) {
           canMove = false;
           break;

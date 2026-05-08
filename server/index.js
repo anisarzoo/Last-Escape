@@ -292,7 +292,8 @@ function startGameLoop(roomId) {
         return { 
           id: p.id, x: p.x, y: p.y, hp: p.hp, 
           aimAngle: p.aimAngle, isCarryingKey: p.isCarryingKey, 
-          score: p.score, name: p.name, color: p.color 
+          score: p.score, name: p.name, color: p.color,
+          range: p.range
         };
       }),
       bullets: room.bullets.map(b => ({ 

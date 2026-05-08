@@ -292,7 +292,7 @@ io.on('connection', (socket) => {
         if (
           tileY >= 0 && tileY < room.maze.length &&
           tileX >= 0 && tileX < room.maze[0].length &&
-          (room.maze[tileY][tileX] === 1 || room.maze[tileY][tileX] === 3 || (room.maze[tileY][tileX] === 2 && room.pickupLockoutRemaining > 0))
+          (room.maze[tileY][tileX] === 1 || room.maze[tileY][tileX] === 3 || (room.maze[tileY][tileX] === 2 && (!room.key.carrierId || (room.keyPickupTime && (Date.now() - room.keyPickupTime < 60000)))))
         ) {
           canMove = false;
           break;

@@ -442,7 +442,7 @@ const Game = ({ roomData }) => {
         const r = 14;
         let px = posRef.current.x, py = posRef.current.y;
 
-        const isExitLocked = gameState?.pickupLockoutRemaining > 0;
+        const isExitLocked = !gameState?.key?.carrierId || (gameState?.pickupLockoutRemaining > 0);
 
         let tx = px + dx;
         if (Math.abs(inputY) > 0.1 && Math.abs(inputX) < 0.5) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.25 * dt;
@@ -582,7 +582,7 @@ const Game = ({ roomData }) => {
               // Cracked texture look
               ctx.beginPath(); ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)'; ctx.moveTo(tx+10, ty+10); ctx.lineTo(tx+TILE_SIZE-10, ty+TILE_SIZE-10); ctx.stroke();
             } else if (tile === 2) {
-              const isLocked = (gameState?.pickupLockoutRemaining > 0);
+              const isLocked = !gameState?.key?.carrierId || (gameState?.pickupLockoutRemaining > 0);
               if (isLocked) {
                 ctx.fillStyle = 'rgba(244, 63, 94, 0.15)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
                 ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 4; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);

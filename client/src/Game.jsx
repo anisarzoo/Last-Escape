@@ -173,11 +173,26 @@ const Game = ({ roomData, playerName }) => {
   const smoothedPlayersRef = useRef({});
   const localBulletsRef = useRef([]);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [isMobile, setIsMobile] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
+
+  // Joystick state (using refs for physics/logic, state for UI)
+  const moveJoystickRef = useRef({ active: false, x: 0, y: 0, startX: 0, startY: 0, curX: 0, curY: 0 });
+  const aimJoystickRef = useRef({ active: false, x: 0, y: 0, startX: 0, startY: 0, curX: 0, curY: 0 });
+  const [joystickUI, setJoystickUI] = useState({ 
+    move: { active: false, x: 0, y: 0 }, 
+    aim: { active: false, x: 0, y: 0 } 
+  });
 
   const prevPlayersRef = useRef({});
 
   useEffect(() => {
-    const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
+    const handleResize = () => {
+      setDimensions({ width: window.innerWidth, height: window.innerHeight });
+      setIsPortrait(window.innerHeight > window.innerWidth);
+      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0));
+    };
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -318,6 +333,12 @@ const Game = ({ roomData, playerName }) => {
         if (keys['ArrowLeft']) inputX -= 1;
         if (keys['ArrowRight']) inputX += 1;
 
+        // Mobile Move Joystick Input
+        if (isMobile && moveJoystickRef.current.active) {
+          inputX = moveJoystickRef.current.x;
+          inputY = moveJoystickRef.current.y;
+        }
+
         const ACCEL = 0.8 * dt;
         const FRICTION = isDashing ? 0.98 : 0.88;
         if (inputX !== 0) velRef.current.x += inputX * ACCEL;
@@ -349,6 +370,9 @@ const Game = ({ roomData, playerName }) => {
         if (keys['d'] || keys['D']) { adx += 1; aimPressed = true; }
 
         if (aimPressed) targetAngle = Math.atan2(ady, adx);
+        else if (isMobile && aimJoystickRef.current.active) {
+          targetAngle = Math.atan2(aimJoystickRef.current.y, aimJoystickRef.current.x);
+        }
         else if (inputX !== 0 || inputY !== 0) targetAngle = Math.atan2(inputY, inputX);
 
         const angleDiff = (targetAngle - aimAngleRef.current + Math.PI * 3) % (Math.PI * 2) - Math.PI;
@@ -605,9 +629,145 @@ const Game = ({ roomData, playerName }) => {
   const dashCDRemaining = Math.max(0, 3000 - (Date.now() - dashCooldownRef.current));
   const isKeyCarrier = gameState?.key.carrierId === socket.id;
 
+  const handleTouchStart = (e) => {
+    if (!isMobile) return;
+    initAudio();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      const { clientX, clientY } = touch;
+      
+      // Left half = movement
+      if (clientX < dimensions.width / 2) {
+        if (!moveJoystickRef.current.active) {
+          moveJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
+          setJoystickUI(prev => ({ ...prev, move: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY } }));
+        }
+      } 
+      // Right half = aiming
+      else {
+        if (!aimJoystickRef.current.active) {
+          aimJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
+          setJoystickUI(prev => ({ ...prev, aim: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY } }));
+        }
+      }
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isMobile) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      const { clientX, clientY, identifier } = touch;
+
+      if (moveJoystickRef.current.active && moveJoystickRef.current.id === identifier) {
+        const dx = clientX - moveJoystickRef.current.startX;
+        const dy = clientY - moveJoystickRef.current.startY;
+        const dist = Math.min(50, Math.sqrt(dx * dx + dy * dy));
+        const angle = Math.atan2(dy, dx);
+        moveJoystickRef.current.x = (Math.cos(angle) * dist) / 50;
+        moveJoystickRef.current.y = (Math.sin(angle) * dist) / 50;
+        moveJoystickRef.current.curX = moveJoystickRef.current.startX + Math.cos(angle) * dist;
+        moveJoystickRef.current.curY = moveJoystickRef.current.startY + Math.sin(angle) * dist;
+        setJoystickUI(prev => ({ ...prev, move: { ...prev.move, curX: moveJoystickRef.current.curX, curY: moveJoystickRef.current.curY } }));
+      }
+      
+      if (aimJoystickRef.current.active && aimJoystickRef.current.id === identifier) {
+        const dx = clientX - aimJoystickRef.current.startX;
+        const dy = clientY - aimJoystickRef.current.startY;
+        const dist = Math.min(50, Math.sqrt(dx * dx + dy * dy));
+        const angle = Math.atan2(dy, dx);
+        aimJoystickRef.current.x = Math.cos(angle);
+        aimJoystickRef.current.y = Math.sin(angle);
+        aimJoystickRef.current.curX = aimJoystickRef.current.startX + Math.cos(angle) * dist;
+        aimJoystickRef.current.curY = aimJoystickRef.current.startY + Math.sin(angle) * dist;
+        setJoystickUI(prev => ({ ...prev, aim: { ...prev.aim, curX: aimJoystickRef.current.curX, curY: aimJoystickRef.current.curY } }));
+      }
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!isMobile) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const identifier = e.changedTouches[i].identifier;
+      if (moveJoystickRef.current.id === identifier) {
+        moveJoystickRef.current.active = false;
+        moveJoystickRef.current.x = 0;
+        moveJoystickRef.current.y = 0;
+        setJoystickUI(prev => ({ ...prev, move: { active: false, x: 0, y: 0 } }));
+      }
+      if (aimJoystickRef.current.id === identifier) {
+        aimJoystickRef.current.active = false;
+        aimJoystickRef.current.x = 0;
+        aimJoystickRef.current.y = 0;
+        setJoystickUI(prev => ({ ...prev, aim: { active: false, x: 0, y: 0 } }));
+      }
+    }
+  };
+
+  const handleMobileShoot = (e) => {
+    e.stopPropagation();
+    initAudio();
+    if (Date.now() - shootCooldownRef.current > 500) {
+      socket.emit('player-shoot');
+      setMuzzleFlash(Date.now());
+      shootCooldownRef.current = Date.now();
+    }
+  };
+
+  const handleMobileDash = (e) => {
+    e.stopPropagation();
+    initAudio();
+    if (Date.now() - dashCooldownRef.current > 3000) {
+      dashTimeRef.current = Date.now();
+      dashCooldownRef.current = Date.now();
+      socket.emit('player-dash');
+      socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
+    }
+  };
+
   return (
-    <div className="game-wrapper">
+    <div 
+      className="game-wrapper"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <canvas ref={canvasRef} style={{ display: 'block' }} />
+
+      {isMobile && isPortrait && (
+        <div className="portrait-lock-overlay">
+          <div className="lock-content">
+            <Activity size={48} className="rotate-icon" />
+            <h2>LANDSCAPE REQUIRED</h2>
+            <p>Please rotate your device for the best tactical experience.</p>
+          </div>
+        </div>
+      )}
+
+      {isMobile && !isPortrait && !gameOver && (
+        <div className="mobile-controls-layer">
+          <div className="mobile-action-buttons">
+            <button className="mobile-btn dash-btn" onTouchStart={handleMobileDash}>
+              <Wind size={24} />
+            </button>
+            <button className="mobile-btn shoot-btn" onTouchStart={handleMobileShoot}>
+              <Target size={32} />
+            </button>
+          </div>
+
+          {joystickUI.move.active && (
+            <div className="joystick-base" style={{ left: joystickUI.move.x, top: joystickUI.move.y }}>
+              <div className="joystick-knob" style={{ transform: `translate(${joystickUI.move.curX - joystickUI.move.x}px, ${joystickUI.move.curY - joystickUI.move.y}px)` }} />
+            </div>
+          )}
+
+          {joystickUI.aim.active && (
+            <div className="joystick-base" style={{ left: joystickUI.aim.x, top: joystickUI.aim.y }}>
+              <div className="joystick-knob" style={{ transform: `translate(${joystickUI.aim.curX - joystickUI.aim.x}px, ${joystickUI.aim.curY - joystickUI.aim.y}px)` }} />
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Low HP Vignette */}
       <div className={`low-hp-vignette ${(localPlayer?.hp > 0 && localPlayer?.hp < 30) ? 'active' : ''}`} />

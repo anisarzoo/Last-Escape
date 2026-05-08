@@ -170,15 +170,15 @@ io.on('connection', (socket) => {
           if (dist < 40) { // Collision radius
             target.hp -= 10;
             
-            // Pure velocity impulse (No snapping for smoothness)
-            const kbForce = 15; // Adjusted for purely velocity-based push
+            // Pure velocity impulse (High force for smooth but strong push)
+            const kbForce = 45; 
             const kx = Math.cos(dashAngle) * kbForce;
             const ky = Math.sin(dashAngle) * kbForce;
             
             io.to(player.roomId).emit('player-knockback', { id: pId, vx: kx, vy: ky });
             io.to(player.roomId).emit('play-sound', { x: target.x, y: target.y, type: 'dash-hit' });
             
-            player.isDashing = false; // End dash on hit
+            // Don't stop dash on hit for better flow
             break;
           }
         }

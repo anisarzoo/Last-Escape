@@ -719,9 +719,7 @@ const Game = ({ roomData, playerName }) => {
         }
 
 
-        const cW=220, cH=100; ctx.save(); ctx.translate(width-cW-24, height-cH-24); drawPanel(0,0,cW,cH);
-        ctx.fillStyle='#fff'; ctx.font='900 12px Outfit'; ctx.fillText('CONTROLS', 20, 25);
-        ctx.fillStyle='#94a3b8'; ctx.font='700 11px Outfit'; ctx.fillText('CURSORS : MOVE', 20, 50); ctx.fillText('WASD : AIM', 20, 70); ctx.fillText('SPACE : FIRE', 20, 90); ctx.fillText('SHIFT : DASH', 120, 90); ctx.restore();
+
 
         if(gameOver){
           ctx.fillStyle='rgba(2,6,23,0.9)'; ctx.fillRect(0,0,width,height);

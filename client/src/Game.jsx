@@ -1,6 +1,16 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { socket } from './socket';
 import { MAZE_MAP, TILE_SIZE, MAZE_WIDTH, MAZE_HEIGHT } from './constants';
+import { 
+  Skull, 
+  Target, 
+  Activity, 
+  Wind, 
+  Map as MapIcon, 
+  AlertTriangle,
+  Zap,
+  Crosshair
+} from 'lucide-react';
 
 // --- AUDIO ENGINE ---
 let audioCtx = null;
@@ -19,12 +29,10 @@ const playSpatial = (x, y, type, listenerPos) => {
   panner.maxDistance = 1500;
   panner.rolloffFactor = 1.5;
   
-  // Set position (Normalized to maze units)
   panner.positionX.value = x;
   panner.positionY.value = y;
-  panner.positionZ.value = 300; // Elevation
+  panner.positionZ.value = 300;
 
-  // Set Listener
   audioCtx.listener.positionX.value = listenerPos.x;
   audioCtx.listener.positionY.value = listenerPos.y;
   audioCtx.listener.positionZ.value = 500;
@@ -36,22 +44,17 @@ const playSpatial = (x, y, type, listenerPos) => {
   const now = audioCtx.currentTime;
 
   if (type === 'shoot') {
-    // Noise-based gunshot
     const bufferSize = audioCtx.sampleRate * 0.1;
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
     const noise = audioCtx.createBufferSource();
     noise.buffer = buffer;
-
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'bandpass';
     filter.frequency.value = 1000;
-    
     noise.connect(filter);
     filter.connect(gain);
-    
     gain.gain.setValueAtTime(0.3, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
     noise.start(now);
@@ -62,7 +65,6 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(150, now);
     osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
-    
     osc.connect(gain);
     gain.gain.setValueAtTime(0.5, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
@@ -74,7 +76,6 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(440, now);
     osc.frequency.exponentialRampToValueAtTime(880, now + 0.4);
-    
     osc.connect(gain);
     gain.gain.setValueAtTime(0.2, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
@@ -85,18 +86,14 @@ const playSpatial = (x, y, type, listenerPos) => {
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'highpass';
     filter.frequency.value = 1000;
-    
     const bufferSize = audioCtx.sampleRate * 0.2;
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
     const noise = audioCtx.createBufferSource();
     noise.buffer = buffer;
-
     noise.connect(filter);
     filter.connect(gain);
-
     gain.gain.setValueAtTime(0.2, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
     noise.start(now);
@@ -107,7 +104,6 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(100, now);
     osc.frequency.exponentialRampToValueAtTime(10, now + 1.5);
-    
     osc.connect(gain);
     gain.gain.setValueAtTime(0.3, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
@@ -119,7 +115,6 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(800, now);
     osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
-    
     osc.connect(gain);
     gain.gain.setValueAtTime(0.15, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
@@ -131,7 +126,6 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.type = 'square';
     osc.frequency.setValueAtTime(100, now);
     osc.frequency.exponentialRampToValueAtTime(300, now + 0.2);
-    
     osc.connect(gain);
     gain.gain.setValueAtTime(0.4, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
@@ -143,38 +137,24 @@ const playSpatial = (x, y, type, listenerPos) => {
 const drawKey = (ctx, x, y, pulse) => {
   ctx.save();
   ctx.translate(x, y);
-  
-  // Floating animation
   const floatOffset = Math.sin(Date.now() / 300) * 5;
   ctx.translate(0, floatOffset);
-  
   ctx.strokeStyle = '#fbbf24';
   ctx.fillStyle = '#fbbf24';
   ctx.lineWidth = 3;
   ctx.lineCap = 'round';
   ctx.shadowBlur = 15 + pulse * 10;
   ctx.shadowColor = '#fbbf24';
-
-  // Ring/Head
-  ctx.beginPath();
-  ctx.arc(0, -12, 7, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Shaft
-  ctx.beginPath();
-  ctx.moveTo(0, -5);
-  ctx.lineTo(0, 12);
-  ctx.stroke();
-
-  // Bits
+  ctx.beginPath(); ctx.arc(0, -12, 7, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(0, 12); ctx.stroke();
   ctx.fillRect(0, 8, 6, 2.5);
   ctx.fillRect(0, 4, 4, 2.5);
-  
   ctx.restore();
 };
 
 const Game = ({ roomData, playerName }) => {
   const canvasRef = useRef(null);
+  const minimapCanvasRef = useRef(null);
   const posRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
   const aimAngleRef = useRef(0);
   const [gameState, setGameState] = useState(null);
@@ -182,6 +162,7 @@ const Game = ({ roomData, playerName }) => {
   const [isSpectating, setIsSpectating] = useState(false);
   const [muzzleFlash, setMuzzleFlash] = useState(0);
   const [screenShake, setScreenShake] = useState(0);
+  const [killFeed, setKillFeed] = useState([]);
   const keysRef = useRef({});
   const shootCooldownRef = useRef(0);
   const dashCooldownRef = useRef(0);
@@ -189,15 +170,14 @@ const Game = ({ roomData, playerName }) => {
   const particlesRef = useRef([]);
   const lastEmitTimeRef = useRef(0);
   const velRef = useRef({ x: 0, y: 0 });
-  const smoothedPlayersRef = useRef({}); // { id: { x, y, vx, vy } }
+  const smoothedPlayersRef = useRef({});
   const localBulletsRef = useRef([]);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-  // Handle Resize
+  const prevPlayersRef = useRef({});
+
   useEffect(() => {
-    const handleResize = () => {
-      setDimensions({ width: window.innerWidth, height: window.innerHeight });
-    };
+    const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -210,20 +190,16 @@ const Game = ({ roomData, playerName }) => {
         x, y,
         vx: Math.cos(angle) * s,
         vy: Math.sin(angle) * s,
-        color,
-        life,
-        maxLife: life,
+        color, life, maxLife: life,
         size: Math.random() * 3 + 1
       });
     }
   };
 
-  // Sync initial position
   useEffect(() => {
     initAudio();
     const handleSound = (data) => {
       playSpatial(data.x, data.y, data.type, posRef.current);
-      // Trigger particles on sound events
       if (data.type === 'hit') {
         createParticles(data.x, data.y, '#f43f5e', 12, 4);
         setScreenShake(Date.now());
@@ -240,12 +216,10 @@ const Game = ({ roomData, playerName }) => {
     socket.on('play-sound', handleSound);
 
     const handleKnockback = (data) => {
-      // Apply to smoothed copy for immediate visual feedback
       if (smoothedPlayersRef.current[data.id]) {
         smoothedPlayersRef.current[data.id].vx += data.vx;
         smoothedPlayersRef.current[data.id].vy += data.vy;
       }
-      
       if (data.id === socket.id) {
         velRef.current.x += data.vx;
         velRef.current.y += data.vy;
@@ -259,12 +233,11 @@ const Game = ({ roomData, playerName }) => {
       socket.off('player-knockback', handleKnockback);
     };
   }, []);
+
   useEffect(() => {
     if (roomData) {
       const me = roomData.players.find(p => p.id === socket.id);
-      if (me) {
-        posRef.current = { x: me.x, y: me.y };
-      }
+      if (me) posRef.current = { x: me.x, y: me.y };
     }
   }, [roomData]);
 
@@ -281,7 +254,6 @@ const Game = ({ roomData, playerName }) => {
       const dt = Math.min(2, (time - lastTime) / 16.66);
       lastTime = time;
 
-      // Update Smoothed Players
       if (gameState) {
         gameState.players.forEach(p => {
           if (p.id === socket.id) return;
@@ -289,22 +261,12 @@ const Game = ({ roomData, playerName }) => {
             smoothedPlayersRef.current[p.id] = { x: p.x, y: p.y, vx: 0, vy: 0 };
           }
           const sp = smoothedPlayersRef.current[p.id];
-          
-          // Friction for smoothed velocity
-          sp.vx *= 0.88;
-          sp.vy *= 0.88;
-          
-          // Integrate velocity
-          sp.x += sp.vx * dt;
-          sp.y += sp.vy * dt;
-          
-          // Lerp towards server position (Soft sync)
-          sp.x += (p.x - sp.x) * 0.3;
-          sp.y += (p.y - sp.y) * 0.3;
+          sp.vx *= 0.88; sp.vy *= 0.88;
+          sp.x += sp.vx * dt; sp.y += sp.vy * dt;
+          sp.x += (p.x - sp.x) * 0.3; sp.y += (p.y - sp.y) * 0.3;
         });
       }
 
-      // Update Local Bullets (Smoothing with Collision)
       localBulletsRef.current.forEach(b => {
         const nextX = b.x + b.vx * dt;
         const nextY = b.y + b.vy * dt;
@@ -322,16 +284,13 @@ const Game = ({ roomData, playerName }) => {
             if (!bounced) { b.vx *= -1; b.vy *= -1; }
             b.bounces--;
           } else {
-            // Mark for removal or just stop moving (server will sync soon)
             b.vx = 0; b.vy = 0;
           }
         } else {
-          b.x = nextX;
-          b.y = nextY;
+          b.x = nextX; b.y = nextY;
         }
       });
 
-      // 1. PHYSICS & INPUT
       if (!gameOver) {
         let step = 5 * dt;
         const now = Date.now();
@@ -341,13 +300,11 @@ const Game = ({ roomData, playerName }) => {
         if (isDashing) {
           step *= 4; 
           createParticles(posRef.current.x, posRef.current.y, 'rgba(99, 102, 241, 0.4)', 2, 0.5, 0.5);
-        }
-        else {
+        } else {
           const localPlayer = gameState?.players.find(p => p.id === socket.id);
           if (localPlayer?.isCarryingKey) step *= 1.25;
         }
 
-        // Handle Dash Trigger
         if (keys['Shift'] && now - dashCooldownRef.current > 3000 && !isDashing) {
           dashTimeRef.current = now;
           dashCooldownRef.current = now;
@@ -355,26 +312,19 @@ const Game = ({ roomData, playerName }) => {
           socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
         }
 
-        // 1. Calculate Raw Input Direction
-        let inputX = 0;
-        let inputY = 0;
+        let inputX = 0, inputY = 0;
         if (keys['ArrowUp']) inputY -= 1;
         if (keys['ArrowDown']) inputY += 1;
         if (keys['ArrowLeft']) inputX -= 1;
         if (keys['ArrowRight']) inputX += 1;
 
-        // Physics Constants
         const ACCEL = 0.8 * dt;
         const FRICTION = isDashing ? 0.98 : 0.88;
-        
         if (inputX !== 0) velRef.current.x += inputX * ACCEL;
         if (inputY !== 0) velRef.current.y += inputY * ACCEL;
-
-        // Apply Friction
         velRef.current.x *= FRICTION;
         velRef.current.y *= FRICTION;
 
-        // Handle Dash Momentum
         if (isDashing) {
           const dashMag = 12;
           const currentMag = Math.sqrt(velRef.current.x**2 + velRef.current.y**2);
@@ -385,15 +335,12 @@ const Game = ({ roomData, playerName }) => {
           }
         }
 
-        let dx = velRef.current.x * dt;
-        let dy = velRef.current.y * dt;
+        let dx = velRef.current.x * dt, dy = velRef.current.y * dt;
 
-        // Drift Particles
         if (Math.abs(velRef.current.x) + Math.abs(velRef.current.y) > 8) {
           if (Math.random() > 0.7) createParticles(posRef.current.x, posRef.current.y, 'rgba(255,255,255,0.2)', 1, 0.5, 0.3);
         }
 
-        // 2. Stable Aim logic (separate from collision-step)
         let targetAngle = aimAngleRef.current;
         let adx = 0, ady = 0, aimPressed = false;
         if (keys['w'] || keys['W']) { ady -= 1; aimPressed = true; }
@@ -401,44 +348,32 @@ const Game = ({ roomData, playerName }) => {
         if (keys['a'] || keys['A']) { adx -= 1; aimPressed = true; }
         if (keys['d'] || keys['D']) { adx += 1; aimPressed = true; }
 
-        if (aimPressed) {
-          targetAngle = Math.atan2(ady, adx);
-        } else if (inputX !== 0 || inputY !== 0) {
-          // Use input vector (stable) instead of movement vector (colliding)
-          targetAngle = Math.atan2(inputY, inputX);
-        }
+        if (aimPressed) targetAngle = Math.atan2(ady, adx);
+        else if (inputX !== 0 || inputY !== 0) targetAngle = Math.atan2(inputY, inputX);
 
-        // 3. Smooth Angle Transition (Prevents glitchy 180-flips)
         const angleDiff = (targetAngle - aimAngleRef.current + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-        aimAngleRef.current += angleDiff * 0.4; // 40% of the way each frame (~6 frames to full turn)
+        aimAngleRef.current += angleDiff * 0.4;
 
         const r = 14;
-        let px = posRef.current.x;
-        let py = posRef.current.y;
+        let px = posRef.current.x, py = posRef.current.y;
 
-        // X Collision & Sliding
         let tx = px + dx;
         if (dy !== 0 && dx === 0) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.15;
         let canX = true;
         const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
         for(let p of xPts) if(MAZE_MAP[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)]===1){canX=false;break;}
-        if(canX) px = tx;
-        else velRef.current.x = 0; // Fix sticking
+        if(canX) px = tx; else velRef.current.x = 0;
 
-        // Y Collision & Sliding
         let ty = py + dy;
         if (dx !== 0 && dy === 0) ty += ((Math.floor(py / TILE_SIZE) + 0.5) * TILE_SIZE - py) * 0.15;
         let canY = true;
         const yPts = [{x:px-r,y:ty-r},{x:px+r,y:ty-r},{x:px-r,y:ty+r},{x:px+r,y:ty+r}];
         for(let p of yPts) if(MAZE_MAP[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)]===1){canY=false;break;}
-        if(canY) py = ty;
-        else velRef.current.y = 0; // Fix sticking
+        if(canY) py = ty; else velRef.current.y = 0;
 
         const angleChanged = Math.abs(angleDiff) > 0.01;
         if (px !== posRef.current.x || py !== posRef.current.y || angleChanged) {
           posRef.current = { x: px, y: py };
-          
-          // Throttle socket emissions to ~30Hz
           if (now - lastEmitTimeRef.current > 30) {
             socket.emit('player-move', { x: px, y: py, aimAngle: aimAngleRef.current });
             lastEmitTimeRef.current = now;
@@ -453,128 +388,71 @@ const Game = ({ roomData, playerName }) => {
         }
       }
 
-      // 2. RENDERING (Directly use posRef)
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext('2d');
         const { width, height } = dimensions;
-        
-        // Sync canvas size if needed (handled by state but double check)
-        if (canvas.width !== width || canvas.height !== height) {
-          canvas.width = width;
-          canvas.height = height;
-        }
+        if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
 
-        ctx.fillStyle = '#020617';
-        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, width, height);
 
-        const curX = posRef.current.x;
-        const curY = posRef.current.y;
-        
-        let targetX = curX;
-        let targetY = curY;
+        const curX = posRef.current.x, curY = posRef.current.y;
+        let targetX = curX, targetY = curY;
 
-        // Spectate Logic: Follow the killer chain
         if (isSpectating && gameState) {
           const lp = gameState.players.find(p => p.id === socket.id);
           let spectateId = lp?.killedBy;
-          
-          // Follow the chain: if my killer is dead, watch who killed them
           let targetPlayer = gameState.players.find(p => p.id === spectateId);
           while (targetPlayer && targetPlayer.hp <= 0 && targetPlayer.killedBy && targetPlayer.killedBy !== 'ZONE') {
             targetPlayer = gameState.players.find(p => p.id === targetPlayer.killedBy);
           }
-
-          if (targetPlayer && targetPlayer.hp > 0) {
-            targetX = targetPlayer.x;
-            targetY = targetPlayer.y;
-          } else {
-            // Find closest living player to death location
-            let closest = null;
-            let minDist = Infinity;
+          if (targetPlayer && targetPlayer.hp > 0) { targetX = targetPlayer.x; targetY = targetPlayer.y; }
+          else {
+            let closest = null, minDist = Infinity;
             gameState.players.forEach(p => {
               if (p.hp > 0 && p.id !== socket.id) {
                 const d = Math.sqrt((posRef.current.x - p.x)**2 + (posRef.current.y - p.y)**2);
-                if (d < minDist) {
-                  minDist = d;
-                  closest = p;
-                }
+                if (d < minDist) { minDist = d; closest = p; }
               }
             });
-
-            if (closest) {
-              targetX = closest.x;
-              targetY = closest.y;
-            } else {
-              targetX = MAZE_WIDTH / 2;
-              targetY = MAZE_HEIGHT / 2;
-            }
+            if (closest) { targetX = closest.x; targetY = closest.y; }
+            else { targetX = MAZE_WIDTH / 2; targetY = MAZE_HEIGHT / 2; }
           }
         }
 
-        const camX = width / 2 - targetX;
-        const camY = height / 2 - targetY;
-
+        const camX = width / 2 - targetX, camY = height / 2 - targetY;
         ctx.save();
-        
-        // Screen Shake
         if (Date.now() - screenShake < 200) {
           const intensity = 8 * (1 - (Date.now() - screenShake) / 200);
           ctx.translate(Math.random() * intensity - intensity/2, Math.random() * intensity - intensity/2);
         }
-
         ctx.translate(camX, camY);
 
-        // --- PARTICLES ---
         particlesRef.current.forEach((p, i) => {
-          p.x += p.vx;
-          p.y += p.vy;
-          p.life -= 0.02;
-          if (p.life <= 0) {
-            particlesRef.current.splice(i, 1);
-            return;
-          }
-          ctx.save();
-          ctx.globalAlpha = p.life / p.maxLife;
-          ctx.fillStyle = p.color;
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
-          ctx.restore();
+          p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+          if (p.life <= 0) { particlesRef.current.splice(i, 1); return; }
+          ctx.save(); ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
         });
 
-        // Safe Zone Boundary
         if (gameState && !gameState.key.carrierId) {
-          ctx.save();
-          ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)';
-          ctx.lineWidth = 15;
-          ctx.beginPath();
-          ctx.arc(MAZE_WIDTH / 2, MAZE_HEIGHT / 2, gameState.zoneRadius, 0, Math.PI * 2);
-          ctx.stroke();
-          
-          ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)';
-          ctx.lineWidth = 5;
-          ctx.stroke();
-          
-          ctx.shadowBlur = 30;
-          ctx.shadowColor = '#f43f5e';
-          ctx.stroke();
-          ctx.restore();
+          ctx.save(); ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)'; ctx.lineWidth = 15; ctx.beginPath();
+          ctx.arc(MAZE_WIDTH / 2, MAZE_HEIGHT / 2, gameState.zoneRadius, 0, Math.PI * 2); ctx.stroke();
+          ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)'; ctx.lineWidth = 5; ctx.stroke();
+          ctx.shadowBlur = 30; ctx.shadowColor = '#f43f5e'; ctx.stroke(); ctx.restore();
         }
 
-        // Grid
         ctx.strokeStyle = 'rgba(99, 102, 241, 0.05)'; ctx.lineWidth = 1;
         for (let x=0; x<MAZE_WIDTH; x+=100) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,MAZE_HEIGHT); ctx.stroke(); }
         for (let y=0; y<MAZE_HEIGHT; y+=100) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(MAZE_WIDTH,y); ctx.stroke(); }
 
-        // Maze
         MAZE_MAP.forEach((row, y) => {
           row.forEach((tile, x) => {
             if (tile === 1) {
               const tx=x*TILE_SIZE, ty=y*TILE_SIZE;
               ctx.fillStyle = '#1e293b'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2;
-              ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
-              ctx.shadowBlur = 8; ctx.shadowColor = '#6366f1';
-              ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
+              ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
+              ctx.shadowBlur = 8; ctx.shadowColor = '#6366f1'; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
               ctx.shadowBlur = 0;
             } else if (tile === 2) {
               ctx.fillStyle = 'rgba(16, 185, 129, 0.1)'; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
@@ -586,7 +464,6 @@ const Game = ({ roomData, playerName }) => {
         });
 
         if (gameState) {
-          // Render Smoothed Bullets
           localBulletsRef.current.forEach(b => {
             ctx.fillStyle = '#fde047'; ctx.shadowBlur = 10; ctx.shadowColor = '#fde047';
             ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
@@ -596,23 +473,18 @@ const Game = ({ roomData, playerName }) => {
           if (k && !k.carrierId) {
             const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
             drawKey(ctx, k.x, k.y, pulse);
-            ctx.fillStyle = '#fff'; ctx.font='900 12px Outfit'; ctx.textAlign='center';
-            ctx.fillText('MASTER KEY', k.x, k.y-35);
           }
 
           gameState.players.forEach(p => {
             if (p.hp <= 0) return;
             ctx.save();
-            const isMe = p.id === socket.id;
-            const sp = smoothedPlayersRef.current[p.id];
-            const px = isMe ? curX : (sp ? sp.x : p.x);
-            const py = isMe ? curY : (sp ? sp.y : p.y);
+            const isMe = p.id === socket.id, sp = smoothedPlayersRef.current[p.id];
+            const px = isMe ? curX : (sp ? sp.x : p.x), py = isMe ? curY : (sp ? sp.y : p.y);
             const pAngle = isMe ? aimAngleRef.current : (p.aimAngle || 0);
             ctx.translate(px, py);
 
             if (isMe && Date.now() - muzzleFlash < 100) {
-              ctx.fillStyle = 'rgba(253, 224, 71, 0.3)';
-              ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill();
+              ctx.fillStyle = 'rgba(253, 224, 71, 0.3)'; ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill();
             }
 
             ctx.save(); ctx.rotate(pAngle); ctx.fillStyle = '#94a3b8'; ctx.fillRect(12, -4, 22, 8); ctx.restore();
@@ -621,30 +493,15 @@ const Game = ({ roomData, playerName }) => {
             const grad = ctx.createRadialGradient(0,0,0,0,0,16);
             grad.addColorStop(0, color); grad.addColorStop(1, '#000');
             ctx.fillStyle = grad;
-            if (p.isCarryingKey) { 
-              ctx.shadowBlur = 30; 
-              ctx.shadowColor = '#fbbf24'; 
-              ctx.strokeStyle = '#fbbf24';
-              ctx.lineWidth = 4;
-            } else {
-              ctx.strokeStyle='#fff'; 
-              ctx.lineWidth=2; 
-            }
-            ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill();
-            ctx.stroke(); ctx.shadowBlur=0;
+            if (p.isCarryingKey) { ctx.shadowBlur = 30; ctx.shadowColor = '#fbbf24'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 4; }
+            else { ctx.strokeStyle='#fff'; ctx.lineWidth=2; }
+            ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.shadowBlur=0;
 
-            // Only draw overhead UI for other players
             if (!isMe) {
               const barW = 44, barH = 6;
-              ctx.fillStyle = 'rgba(0,0,0,0.5)'; 
-              ctx.fillRect(-barW/2, -38, barW, barH);
-              
-              ctx.fillStyle = p.hp > 30 ? '#10b981' : '#f43f5e';
-              ctx.fillRect(-barW/2, -38, (p.hp/100)*barW, barH);
-
-              ctx.fillStyle = '#fff'; 
-              ctx.font = '900 12px Outfit'; 
-              ctx.textAlign = 'center';
+              ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-barW/2, -38, barW, barH);
+              ctx.fillStyle = p.hp > 30 ? '#10b981' : '#f43f5e'; ctx.fillRect(-barW/2, -38, (p.hp/100)*barW, barH);
+              ctx.fillStyle = '#fff'; ctx.font = '900 12px Outfit'; ctx.textAlign = 'center';
               ctx.fillText(p.name.toUpperCase(), 0, -45);
             }
             ctx.restore();
@@ -652,159 +509,20 @@ const Game = ({ roomData, playerName }) => {
         }
         ctx.restore();
 
-        // UI
-        const drawPanel = (x, y, w, h) => {
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.beginPath(); ctx.roundRect(x,y,w,h,16); ctx.fill();
-          ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke();
-        };
-
-        // 1. Minimap
-        const mSize=160, mScale=mSize/MAZE_WIDTH;
-        ctx.save(); ctx.translate(24,24); drawPanel(0,0,mSize,mSize);
-        MAZE_MAP.forEach((row,y)=>{ row.forEach((tile,x)=>{ if(tile===1){ ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(x*TILE_SIZE*mScale, y*TILE_SIZE*mScale, TILE_SIZE*mScale, TILE_SIZE*mScale); } }); });
-        if(gameState){
+        // Minimap Drawing
+        const mCanvas = minimapCanvasRef.current;
+        if (mCanvas && gameState) {
+          const mCtx = mCanvas.getContext('2d');
+          const mSize = 160, mScale = mSize / MAZE_WIDTH;
+          mCtx.clearRect(0,0,mSize,mSize);
+          
+          MAZE_MAP.forEach((row,y)=>{ row.forEach((tile,x)=>{ if(tile===1){ mCtx.fillStyle='rgba(255,255,255,0.08)'; mCtx.fillRect(x*TILE_SIZE*mScale, y*TILE_SIZE*mScale, TILE_SIZE*mScale, TILE_SIZE*mScale); } }); });
           if (!gameState.key.carrierId) {
-            ctx.strokeStyle='rgba(244,63,94,0.5)'; ctx.beginPath(); ctx.arc((MAZE_WIDTH/2)*mScale,(MAZE_HEIGHT/2)*mScale,gameState.zoneRadius*mScale,0,Math.PI*2); ctx.stroke();
+            mCtx.strokeStyle='rgba(244,63,94,0.3)'; mCtx.lineWidth = 1; mCtx.beginPath(); mCtx.arc((MAZE_WIDTH/2)*mScale,(MAZE_HEIGHT/2)*mScale,gameState.zoneRadius*mScale,0,Math.PI*2); mCtx.stroke();
           }
-          ctx.fillStyle='#eab308'; ctx.beginPath(); ctx.arc(gameState.key.x*mScale, gameState.key.y*mScale, 4, 0, Math.PI * 2); ctx.fill();
-          gameState.players.forEach(p=>{ if(p.hp>0){ ctx.fillStyle=p.id===socket.id?'#6366f1':'#f43f5e'; ctx.beginPath(); ctx.arc((p.id===socket.id?curX:p.x)*mScale, (p.id===socket.id?curY:p.y)*mScale, 3, 0, Math.PI*2); ctx.fill(); }});
-        }
-        ctx.restore();
-
-        // 2. Key Indicator & Warnings (Only for active players)
-        if (gameState && gameState.key.carrierId && !isSpectating) {
-          const carrier = gameState.players.find(p => p.id === gameState.key.carrierId);
-          const isMe = gameState.key.carrierId === socket.id;
-
-          if (carrier && !isMe) {
-            // Draw Compass Arrow
-            const dx = carrier.x - curX;
-            const dy = carrier.y - curY;
-            const angle = Math.atan2(dy, dx);
-            const dist = Math.sqrt(dx*dx + dy*dy);
-
-            // Only show arrow if carrier is off-screen (approx)
-            if (dist > 400) {
-              ctx.save();
-              ctx.translate(width / 2, height / 2);
-              ctx.rotate(angle);
-              
-              // Arrow Style
-              ctx.beginPath();
-              ctx.moveTo(100, -15);
-              ctx.lineTo(130, 0);
-              ctx.lineTo(100, 15);
-              ctx.closePath();
-              
-              ctx.fillStyle = '#fbbf24';
-              ctx.shadowBlur = 15;
-              ctx.shadowColor = '#fbbf24';
-              ctx.fill();
-              
-              ctx.fillStyle = '#fff';
-              ctx.font = '900 12px Outfit';
-              ctx.textAlign = 'center';
-              ctx.rotate(-angle); // Keep text horizontal
-              const labelX = Math.cos(angle) * 150;
-              const labelY = Math.sin(angle) * 150;
-              ctx.fillText(`${Math.round(dist/TILE_SIZE)}M`, labelX, labelY);
-              ctx.restore();
-            }
-
-            // Health Drain Warning
-            ctx.save();
-            ctx.translate(width / 2, 100);
-            ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
-            ctx.beginPath(); ctx.roundRect(-150, -30, 300, 60, 10); ctx.fill();
-            ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2; ctx.stroke();
-            
-            ctx.fillStyle = '#f43f5e';
-            ctx.font = '900 20px Outfit';
-            ctx.textAlign = 'center';
-            ctx.fillText('HEALTH DRAINING!', 0, -5);
-            ctx.font = '700 12px Outfit';
-            ctx.fillStyle = '#fff';
-            ctx.fillText(`ELIMINATE ${carrier.name.toUpperCase()} TO STOP`, 0, 15);
-            ctx.restore();
-          } else if (isMe) {
-            // "You have the treasure" message
-            ctx.save();
-            ctx.translate(width / 2, 100);
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
-            ctx.beginPath(); ctx.roundRect(-150, -30, 300, 60, 10); ctx.fill();
-            ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.stroke();
-            
-            ctx.fillStyle = '#10b981';
-            ctx.font = '900 20px Outfit';
-            ctx.textAlign = 'center';
-            ctx.fillText('YOU HAVE MASTER KEY', 0, -5);
-            ctx.font = '700 12px Outfit';
-            ctx.fillStyle = '#fff';
-            ctx.fillText('ESCAPE TO THE CORNERS TO WIN!', 0, 15);
-            ctx.restore();
-          }
-        }
-
-        if(gameState && !isSpectating){
-          const lp = gameState.players.find(p=>p.id===socket.id);
-          if(lp){
-            const hW=320, hH=120; ctx.save(); ctx.translate(32, height-hH-32); 
-            
-            // HUD Background with glass effect
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
-            ctx.beginPath(); ctx.roundRect(0,0,hW,hH,24); ctx.fill();
-            ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
-            
-            // Glow border
-            ctx.strokeStyle = lp.hp > 30 ? 'rgba(99, 102, 241, 0.2)' : 'rgba(244, 63, 94, 0.2)';
-            ctx.lineWidth = 4; ctx.stroke();
-
-            // Player Name & Room
-            ctx.fillStyle='#fff'; ctx.font='900 16px Outfit'; ctx.textAlign = 'left';
-            ctx.fillText(lp.name.toUpperCase(), 24, 35);
-            ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='700 10px Outfit';
-            ctx.fillText(`SECTOR: ${roomData.id}`, 24, 52);
-
-            // Health Bar
-            const barW = hW - 48, barH = 12;
-            ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.beginPath(); ctx.roundRect(24,65,barW,barH,6); ctx.fill();
-            
-            const hpWidth = (lp.hp/100)*barW;
-            const hpGrad = ctx.createLinearGradient(24,0,24+barW,0);
-            if (lp.hp > 30) {
-              hpGrad.addColorStop(0, '#10b981'); hpGrad.addColorStop(1, '#34d399');
-            } else {
-              hpGrad.addColorStop(0, '#f43f5e'); hpGrad.addColorStop(1, '#fb7185');
-            }
-            ctx.fillStyle = hpGrad;
-            ctx.beginPath(); ctx.roundRect(24,65,Math.max(0, hpWidth),barH,6); ctx.fill();
-
-            // Stats
-            ctx.fillStyle='#94a3b8'; ctx.font='800 11px Outfit';
-            ctx.fillText(`KILLS: ${lp.score}`, 24, 100); 
-            ctx.fillText(`RANGE: ${lp.range}T`, 100, 100); 
-            ctx.fillText(`HP: ${Math.ceil(lp.hp)}%`, 175, 100);
-            
-            // Dash Indicator
-            const dashCD = Math.max(0, 3000 - (Date.now() - dashCooldownRef.current));
-            ctx.fillStyle = dashCD > 0 ? 'rgba(255,255,255,0.1)' : 'rgba(99, 102, 241, 0.2)';
-            ctx.beginPath(); ctx.roundRect(230, 88, 65, 18, 9); ctx.fill();
-            if (dashCD === 0) {
-              ctx.fillStyle = '#6366f1'; ctx.font = '900 9px Outfit'; ctx.textAlign = 'center';
-              ctx.fillText('DASH READY', 262.5, 100.5);
-            } else {
-              ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '900 9px Outfit'; ctx.textAlign = 'center';
-              ctx.fillText(`${(dashCD/1000).toFixed(1)}s`, 262.5, 100.5);
-              // Fill progress
-              ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2;
-              ctx.beginPath(); ctx.arc(288, 97, 5, -Math.PI/2, -Math.PI/2 + (1 - dashCD/3000) * Math.PI*2); ctx.stroke();
-            }
-            ctx.restore();
-          }
-        }
-
-        if(gameOver){
-          // Handled by React overlay now
+          const kPulse = (Math.sin(Date.now()/200)+1)/2;
+          mCtx.fillStyle='#eab308'; mCtx.shadowBlur = 10 * kPulse; mCtx.shadowColor = '#eab308'; mCtx.beginPath(); mCtx.arc(gameState.key.x*mScale, gameState.key.y*mScale, 4, 0, Math.PI * 2); mCtx.fill(); mCtx.shadowBlur = 0;
+          gameState.players.forEach(p=>{ if(p.hp>0){ mCtx.fillStyle=p.id===socket.id?'#6366f1':'#f43f5e'; mCtx.beginPath(); mCtx.arc((p.id===socket.id?curX:p.x)*mScale, (p.id===socket.id?curY:p.y)*mScale, 3, 0, Math.PI*2); mCtx.fill(); }});
         }
       }
 
@@ -821,11 +539,30 @@ const Game = ({ roomData, playerName }) => {
     });
 
     socket.on('game-state', (state) => {
+      // Check for kills
+      if (prevPlayersRef.current) {
+        state.players.forEach(p => {
+          const prevP = prevPlayersRef.current[p.id];
+          if (prevP && prevP.hp > 0 && p.hp <= 0) {
+            const killer = state.players.find(kp => kp.id === p.killedBy);
+            const entry = {
+              id: Date.now(),
+              killer: p.killedBy === 'ZONE' ? 'THE ZONE' : (killer ? killer.name : 'Unknown'),
+              victim: p.name,
+              isZone: p.killedBy === 'ZONE'
+            };
+            setKillFeed(prev => [entry, ...prev].slice(0, 5));
+            setTimeout(() => {
+              setKillFeed(prev => prev.filter(e => e.id !== entry.id));
+            }, 5000);
+          }
+        });
+      }
+      prevPlayersRef.current = state.players.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+
       setGameState(state);
-      
       const serverBulletIds = new Set(state.bullets.map(b => b.id));
       localBulletsRef.current = localBulletsRef.current.filter(b => serverBulletIds.has(b.id));
-      
       state.bullets.forEach(sb => {
         const lb = localBulletsRef.current.find(b => b.id === sb.id);
         if (lb) {
@@ -851,11 +588,87 @@ const Game = ({ roomData, playerName }) => {
 
   const localPlayer = gameState?.players.find(p => p.id === socket.id);
   const isEliminated = localPlayer && localPlayer.hp <= 0;
+  const dashCDRemaining = Math.max(0, 3000 - (Date.now() - dashCooldownRef.current));
+  const isKeyCarrier = gameState?.key.carrierId === socket.id;
 
   return (
     <div className="game-wrapper">
-      <canvas ref={canvasRef} width={window.innerWidth} height={window.innerHeight} style={{ display: 'block' }} />
+      <canvas ref={canvasRef} style={{ display: 'block' }} />
       
+      {/* Low HP Vignette */}
+      <div className={`low-hp-vignette ${(localPlayer?.hp > 0 && localPlayer?.hp < 30) ? 'active' : ''}`} />
+
+      {/* In-Game UI Layer */}
+      {!gameOver && (
+        <div className="ingame-ui-layer">
+          {/* Minimap */}
+          <div className="minimap-wrapper">
+            <div className="minimap-canvas-container">
+              <canvas ref={minimapCanvasRef} width={160} height={160} />
+            </div>
+          </div>
+
+          {/* Kill Feed */}
+          <div className="killfeed-container">
+            {killFeed.map(entry => (
+              <div key={entry.id} className="kill-entry">
+                <span className="killer-name">{entry.killer.toUpperCase()}</span>
+                <Skull className="kill-icon" />
+                <span className="victim-name">{entry.victim.toUpperCase()}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Key Carrier Alert */}
+          {gameState?.key.carrierId && (
+            <div className="key-carrier-alert">
+              <Zap size={18} fill="currentColor" />
+              <span>{isKeyCarrier ? 'YOU HAVE THE MASTER KEY' : `${gameState.players.find(p => p.id === gameState.key.carrierId)?.name.toUpperCase()} HAS THE KEY`}</span>
+              <Zap size={18} fill="currentColor" />
+            </div>
+          )}
+
+          {/* Main HUD */}
+          {localPlayer && !isEliminated && (
+            <div className="hud-container">
+              <div className="hud-header">
+                <div className="hud-player-info">
+                  <span className="hud-player-name">{localPlayer.name.toUpperCase()}</span>
+                </div>
+                <div className={`hud-dash-indicator ${dashCDRemaining > 0 ? 'cooldown' : ''}`}>
+                  <Wind size={14} />
+                  <span>{dashCDRemaining > 0 ? `${(dashCDRemaining/1000).toFixed(1)}s` : 'READY'}</span>
+                </div>
+              </div>
+
+              <div className="hud-hp-section">
+                <div className="hud-hp-bar-bg">
+                  <div 
+                    className={`hud-hp-bar-fill ${localPlayer.hp < 30 ? 'critical' : ''}`} 
+                    style={{ width: `${localPlayer.hp}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="hud-stats-row">
+                <div className="hud-stat-item">
+                  <Skull className="hud-stat-icon" />
+                  <span className="hud-stat-value">{localPlayer.score}</span>
+                </div>
+                <div className="hud-stat-item">
+                  <Crosshair className="hud-stat-icon" />
+                  <span className="hud-stat-value">{localPlayer.range}T</span>
+                </div>
+                <div className="hud-stat-item">
+                  <Activity className="hud-stat-icon" />
+                  <span className="hud-stat-value">{Math.ceil(localPlayer.hp)}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Elimination Overlay */}
       {isEliminated && !isSpectating && !gameOver && (
         <div className="elimination-overlay">
@@ -935,4 +748,5 @@ const Game = ({ roomData, playerName }) => {
 };
 
 export default Game;
+
 

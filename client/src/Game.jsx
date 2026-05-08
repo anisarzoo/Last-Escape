@@ -348,7 +348,7 @@ const Game = ({ roomData }) => {
 
       if (!gameOver) {
         const now = Date.now();
-        const isDashing = now - dashTimeRef.current < 200;
+        const isDashing = now - dashTimeRef.current < 120;
         const keys = keysRef.current;
         let speedMultiplier = 1;
         
@@ -378,15 +378,15 @@ const Game = ({ roomData }) => {
           inputY = moveJoystickRef.current.y;
         }
 
-        const ACCEL = 0.8 * dt * speedMultiplier;
-        const FRICTION = isDashing ? 0.98 : 0.88;
+        const ACCEL = 1.2 * dt * speedMultiplier;
+        const FRICTION = isDashing ? 0.98 : 0.90;
         if (inputX !== 0) velRef.current.x += inputX * ACCEL;
         if (inputY !== 0) velRef.current.y += inputY * ACCEL;
         velRef.current.x *= FRICTION;
         velRef.current.y *= FRICTION;
 
         if (isDashing) {
-          const dashMag = 12;
+          const dashMag = 8;
           const currentMag = Math.sqrt(velRef.current.x**2 + velRef.current.y**2);
           if (currentMag < dashMag) {
             const angle = Math.atan2(velRef.current.y || inputY, velRef.current.x || inputX);
@@ -680,7 +680,26 @@ const Game = ({ roomData }) => {
       }
       prevPlayersRef.current = state.players.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
 
-      setGameState(state);
+      // Incremental Maze Updates
+      if (state.mazeUpdates && state.mazeUpdates.length > 0) {
+        setGameState(prev => {
+          if (!prev) return state;
+          const newMaze = prev.maze ? [...prev.maze.map(row => [...row])] : null;
+          if (newMaze) {
+            state.mazeUpdates.forEach(upd => {
+              if (newMaze[upd.y]) newMaze[upd.y][upd.x] = upd.tile;
+            });
+            return { ...state, maze: newMaze };
+          }
+          return state;
+        });
+      } else {
+        // Preserve maze if not provided in this update
+        setGameState(prev => ({
+          ...state,
+          maze: state.maze || prev?.maze || null
+        }));
+      }
       
       // Authoritative server sync for local player
       const serverMe = state.players.find(p => p.id === socket.id);

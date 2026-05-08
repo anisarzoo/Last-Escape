@@ -99,10 +99,32 @@ function App() {
     socket.emit('start-game');
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(roomId);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const copyToClipboard = async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(roomId);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+        return;
+      }
+      const textArea = document.createElement("textarea");
+      textArea.value = roomId;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      textArea.setSelectionRange(0, 99999);
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      if (successful) {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('Copy failed: ', err);
+    }
   };
 
   const canStartMatch = roomData?.isTeamMode
@@ -319,6 +341,23 @@ function App() {
         </div>
         <h2>Landscape Required</h2>
         <p>Please rotate your screen to play Last Escape</p>
+        <button 
+          className="landscape-request-btn"
+          onClick={() => {
+            try {
+              if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+              }
+              if (window.screen.orientation && window.screen.orientation.lock) {
+                window.screen.orientation.lock('landscape').catch(() => {});
+              }
+            } catch {
+              // Ignore fullscreen/orientation API failures on unsupported devices.
+            }
+          }}
+        >
+          Enter Landscape
+        </button>
       </div>
       <Game roomData={roomData} playerName={playerName} />
     </div>

@@ -354,7 +354,7 @@ io.on('connection', (socket) => {
       player.isDashing = true;
       setTimeout(() => {
         if (players[socket.id]) players[socket.id].isDashing = false;
-      }, 300);
+      }, 150);
     }
   });
 

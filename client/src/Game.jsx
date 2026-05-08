@@ -517,8 +517,22 @@ const Game = ({ roomData, playerName }) => {
           mCtx.clearRect(0,0,mSize,mSize);
           
           MAZE_MAP.forEach((row,y)=>{ row.forEach((tile,x)=>{ if(tile===1){ mCtx.fillStyle='rgba(255,255,255,0.08)'; mCtx.fillRect(x*TILE_SIZE*mScale, y*TILE_SIZE*mScale, TILE_SIZE*mScale, TILE_SIZE*mScale); } }); });
-          if (!gameState.key.carrierId) {
-            mCtx.strokeStyle='rgba(244,63,94,0.3)'; mCtx.lineWidth = 1; mCtx.beginPath(); mCtx.arc((MAZE_WIDTH/2)*mScale,(MAZE_HEIGHT/2)*mScale,gameState.zoneRadius*mScale,0,Math.PI*2); mCtx.stroke();
+          
+          if (!gameState.key.carrierId && gameState.zoneRadius < MAZE_WIDTH) {
+            mCtx.strokeStyle = '#f43f5e';
+            mCtx.lineWidth = 2;
+            mCtx.setLineDash([4, 2]); // Dashed zone on minimap for clarity
+            mCtx.beginPath();
+            mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, gameState.zoneRadius*mScale, 0, Math.PI * 2);
+            mCtx.stroke();
+            mCtx.setLineDash([]); // Reset
+            
+            // Add a subtle fill to the "danger" area (outside zone)
+            mCtx.fillStyle = 'rgba(244, 63, 94, 0.1)';
+            mCtx.beginPath();
+            mCtx.rect(0, 0, mSize, mSize);
+            mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, gameState.zoneRadius*mScale, 0, Math.PI * 2, true);
+            mCtx.fill();
           }
           const kPulse = (Math.sin(Date.now()/200)+1)/2;
           mCtx.fillStyle='#eab308'; mCtx.shadowBlur = 10 * kPulse; mCtx.shadowColor = '#eab308'; mCtx.beginPath(); mCtx.arc(gameState.key.x*mScale, gameState.key.y*mScale, 4, 0, Math.PI * 2); mCtx.fill(); mCtx.shadowBlur = 0;

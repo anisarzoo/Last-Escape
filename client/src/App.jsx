@@ -17,7 +17,7 @@ const MODE_OPTIONS = [
   { value: '4v4', label: '4v4', description: 'Two teams, 4 players each' }
 ];
 
-const APP_VERSION = "v1.5.4";
+const APP_VERSION = "v1.6.0";
 
 const modeLabels = {
   ffa: 'Free For All',

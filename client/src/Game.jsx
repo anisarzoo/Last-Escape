@@ -373,8 +373,6 @@ const Game = ({ roomData }) => {
         if (isDashing) {
           speedMultiplier = 4;
           createParticles(posRef.current.x, posRef.current.y, 'rgba(99, 102, 241, 0.4)', 2, 0.5, 0.5);
-        } else if (localPlayer?.isCarryingKey) {
-          speedMultiplier = 1.15;
         }
 
         if ((keys['Shift'] || keys['MouseRight']) && now - dashCooldownRef.current > 3000 && !isDashing) {

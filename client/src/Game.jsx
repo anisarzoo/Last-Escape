@@ -384,15 +384,22 @@ const Game = ({ roomData, playerName }) => {
         let tx = px + dx;
         if (dy !== 0 && dx === 0) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.15;
         let canX = true;
+        const currentMaze = gameState?.maze || MAZE_MAP;
         const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
-        for(let p of xPts) if(MAZE_MAP[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)]===1){canX=false;break;}
+        for(let p of xPts) {
+          const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
+          if(tile === 1 || tile === 3) { canX=false; break; }
+        }
         if(canX) px = tx; else velRef.current.x = 0;
 
         let ty = py + dy;
         if (dx !== 0 && dy === 0) ty += ((Math.floor(py / TILE_SIZE) + 0.5) * TILE_SIZE - py) * 0.15;
         let canY = true;
         const yPts = [{x:px-r,y:ty-r},{x:px+r,y:ty-r},{x:px-r,y:ty+r},{x:px+r,y:ty+r}];
-        for(let p of yPts) if(MAZE_MAP[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)]===1){canY=false;break;}
+        for(let p of yPts) {
+          const tile = currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)];
+          if(tile === 1 || tile === 3) { canY=false; break; }
+        }
         if(canY) py = ty; else velRef.current.y = 0;
 
         const angleChanged = Math.abs(angleDiff) > 0.01;
@@ -467,19 +474,26 @@ const Game = ({ roomData, playerName }) => {
         }
 
 
-        MAZE_MAP.forEach((row, y) => {
+        const activeMaze = gameState?.maze || MAZE_MAP;
+        activeMaze.forEach((row, y) => {
           row.forEach((tile, x) => {
+            const tx=x*TILE_SIZE, ty=y*TILE_SIZE;
             if (tile === 1) {
-              const tx=x*TILE_SIZE, ty=y*TILE_SIZE;
               ctx.fillStyle = '#1e293b'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
               ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
               ctx.shadowBlur = 8; ctx.shadowColor = '#6366f1'; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
               ctx.shadowBlur = 0;
+            } else if (tile === 3) {
+              // Weak Wall
+              ctx.fillStyle = '#451a03'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+              ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.strokeRect(tx+4, ty+4, TILE_SIZE-8, TILE_SIZE-8);
+              // Cracked texture look
+              ctx.beginPath(); ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)'; ctx.moveTo(tx+10, ty+10); ctx.lineTo(tx+TILE_SIZE-10, ty+TILE_SIZE-10); ctx.stroke();
             } else if (tile === 2) {
-              ctx.fillStyle = 'rgba(16, 185, 129, 0.1)'; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
-              ctx.strokeStyle = '#10b981'; ctx.strokeRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+              ctx.fillStyle = 'rgba(16, 185, 129, 0.1)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+              ctx.strokeStyle = '#10b981'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
               ctx.fillStyle = '#10b981'; ctx.font='900 12px Outfit'; ctx.textAlign='center';
-              ctx.fillText('EXIT', x*TILE_SIZE+TILE_SIZE/2, y*TILE_SIZE+TILE_SIZE/2+4);
+              ctx.fillText('EXIT', tx+TILE_SIZE/2, ty+TILE_SIZE/2+4);
             }
           });
         });
@@ -537,7 +551,21 @@ const Game = ({ roomData, playerName }) => {
           const mSize = 160, mScale = mSize / MAZE_WIDTH;
           mCtx.clearRect(0,0,mSize,mSize);
           
-          MAZE_MAP.forEach((row,y)=>{ row.forEach((tile,x)=>{ if(tile===1){ mCtx.fillStyle='rgba(255,255,255,0.08)'; mCtx.fillRect(x*TILE_SIZE*mScale, y*TILE_SIZE*mScale, TILE_SIZE*mScale, TILE_SIZE*mScale); } }); });
+          const currentMaze = gameState.maze || MAZE_MAP;
+          currentMaze.forEach((row, y) => {
+            row.forEach((tile, x) => {
+              if (tile === 1) {
+                mCtx.fillStyle = 'rgba(255,255,255,0.15)';
+                mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
+              } else if (tile === 3) {
+                mCtx.fillStyle = 'rgba(245, 158, 11, 0.4)'; // Weak wall color on minimap
+                mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
+              } else if (tile === 2) {
+                mCtx.fillStyle = 'rgba(16, 185, 129, 0.3)'; // Exit color on minimap
+                mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
+              }
+            });
+          });
           
           if (!gameState.key.carrierId && gameState.zoneRadius < MAZE_WIDTH) {
             mCtx.strokeStyle = '#f43f5e';

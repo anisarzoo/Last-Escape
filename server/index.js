@@ -55,29 +55,36 @@ io.on('connection', (socket) => {
   socket.on('join-room', ({ roomId, playerName }) => {
     socket.join(roomId);
     
-    // Spawn points at absolute corners
+    // Players spawn exactly at the 8 Exit locations
     const spawnPoints = [
-      { x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 }, // Top Left (0,0)
-      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom Right (30,30)
-      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 }, // Top Right (0,30)
-      { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 } // Bottom Left (30,0)
+      { x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 },   // Top-Left
+      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 },  // Top-Right
+      { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Left
+      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Right
+      { x: MAZE_WIDTH / 2, y: TILE_SIZE * 0.5 },   // Top-Mid
+      { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Mid
+      { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT / 2 },  // Left-Mid
+      { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT / 2 }  // Right-Mid
     ];
 
     if (!rooms[roomId]) {
       rooms[roomId] = {
         id: roomId,
         players: [],
-        key: { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null },
-        zoneRadius: MAZE_WIDTH / 1.2,
-        gameStarted: false,
-        maze: MAZE_MAP,
         bullets: [],
-        startTime: Date.now(),
-        hostId: socket.id
+        maze: JSON.parse(JSON.stringify(MAZE_MAP)), // Deep copy for room-specific destruction
+        weakWallsHP: {}, // Track HP of type 3 tiles
+        gameStarted: false,
+        hostId: socket.id,
+        key: { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null },
+        zoneRadius: Math.sqrt((MAZE_WIDTH / 2) ** 2 + (MAZE_HEIGHT / 2) ** 2) + 200, // Cover all corners + margin
+        zoneRemoved: false,
+        startTime: null,
+        status: 'waiting'
       };
     }
 
-    const playerIndex = rooms[roomId].players.length % 4;
+    const playerIndex = rooms[roomId].players.length % 8;
     const startPos = spawnPoints[playerIndex];
 
     players[socket.id] = {
@@ -98,6 +105,11 @@ io.on('connection', (socket) => {
       lastDashTime: 0,
       isDashing: false
     };
+
+    if (rooms[roomId] && rooms[roomId].players.length >= 8) {
+      socket.emit('error', { message: 'Room is full (Max 8 players)' });
+      return;
+    }
 
     rooms[roomId].players.push(socket.id);
     io.to(roomId).emit('room-update', {
@@ -138,9 +150,9 @@ io.on('connection', (socket) => {
         const tileY = Math.floor(p.y / TILE_SIZE);
         
         if (
-          tileY >= 0 && tileY < MAZE_MAP.length &&
-          tileX >= 0 && tileX < MAZE_MAP[0].length &&
-          MAZE_MAP[tileY][tileX] === 1
+          tileY >= 0 && tileY < room.maze.length &&
+          tileX >= 0 && tileX < room.maze[0].length &&
+          (room.maze[tileY][tileX] === 1 || room.maze[tileY][tileX] === 3)
         ) {
           canMove = false;
           break;
@@ -302,6 +314,7 @@ function startGameLoop(roomId) {
       key: room.key,
       keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,
+      maze: room.maze, // Send dynamic maze state
       time: Math.floor((Date.now() - room.startTime) / 1000)
     });
   }, 1000 / TICK_RATE);
@@ -329,20 +342,33 @@ function updateRoom(roomId) {
     const nextTileX = Math.floor(nextX / TILE_SIZE);
     const nextTileY = Math.floor(nextY / TILE_SIZE);
 
-    const isWall = MAZE_MAP[nextTileY] && MAZE_MAP[nextTileY][nextTileX] === 1;
+    const isWall = room.maze[nextTileY] && room.maze[nextTileY][nextTileX] === 1;
+    const isWeakWall = room.maze[nextTileY] && room.maze[nextTileY][nextTileX] === 3;
 
-    if (isWall) {
+    if (isWall || isWeakWall) {
+      if (isWeakWall) {
+        const wallKey = `${nextTileY},${nextTileX}`;
+        if (!room.weakWallsHP[wallKey]) room.weakWallsHP[wallKey] = 100;
+        room.weakWallsHP[wallKey] -= 25; // 4 shots to break
+        
+        if (room.weakWallsHP[wallKey] <= 0) {
+          room.maze[nextTileY][nextTileX] = 0;
+          io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'wall-break' });
+        }
+        room.bullets.splice(i, 1);
+        continue;
+      }
+
       if (b.bounces > 0) {
         let bounced = false;
-        // Check which axis was hit specifically at the 'next' step
         const currentTileX = Math.floor(b.x / TILE_SIZE);
         const currentTileY = Math.floor(b.y / TILE_SIZE);
 
-        if (MAZE_MAP[currentTileY] && MAZE_MAP[currentTileY][nextTileX] === 1) {
+        if (room.maze[currentTileY] && room.maze[currentTileY][nextTileX] === 1) {
           b.vx *= -1;
           bounced = true;
         }
-        if (MAZE_MAP[nextTileY] && MAZE_MAP[nextTileY][currentTileX] === 1) {
+        if (room.maze[nextTileY] && room.maze[nextTileY][currentTileX] === 1) {
           b.vy *= -1;
           bounced = true;
         }
@@ -351,7 +377,6 @@ function updateRoom(roomId) {
         
         b.bounces--;
         io.to(roomId).emit('play-sound', { x: b.x, y: b.y, type: 'ricochet' });
-        // Don't advance position on the bounce frame to prevent phasing
       } else {
         room.bullets.splice(i, 1);
         continue;

@@ -287,8 +287,17 @@ function startGameLoop(roomId) {
 
     updateRoom(roomId);
     io.to(roomId).emit('game-state', {
-      players: room.players.map(id => players[id]),
-      bullets: room.bullets,
+      players: room.players.map(id => {
+        const p = players[id];
+        return { 
+          id: p.id, x: p.x, y: p.y, hp: p.hp, 
+          aimAngle: p.aimAngle, isCarryingKey: p.isCarryingKey, 
+          score: p.score, name: p.name, color: p.color 
+        };
+      }),
+      bullets: room.bullets.map(b => ({ 
+        id: b.id, x: b.x, y: b.y, vx: b.vx, vy: b.vy, bounces: b.bounces 
+      })),
       key: room.key,
       keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,

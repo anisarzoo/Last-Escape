@@ -796,13 +796,38 @@ const Game = ({ roomData }) => {
                 ctx.fillRect(-2, -7, 4, 14);
                 ctx.fillRect(-7, -2, 14, 4);
               } else {
+                // Realistic Bullet Trio
+                ctx.shadowBlur = 15; ctx.shadowColor = '#fde047';
+                
+                const drawBullet = (ox) => {
+                  ctx.save();
+                  ctx.translate(ox, 0);
+                  // Casing (Brass)
+                  ctx.fillStyle = '#d97706';
+                  ctx.fillRect(-3, -2, 6, 12);
+                  // Projectile (Gold/Copper)
+                  ctx.fillStyle = '#fde047';
+                  ctx.beginPath();
+                  ctx.moveTo(-3, -2);
+                  ctx.quadraticCurveTo(0, -12, 3, -2);
+                  ctx.fill();
+                  // Shine
+                  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                  ctx.lineWidth = 1;
+                  ctx.beginPath(); ctx.moveTo(-1, -4); ctx.lineTo(-1, -8); ctx.stroke();
+                  ctx.restore();
+                };
+
+                drawBullet(-6);
+                drawBullet(0);
+                drawBullet(6);
+
+                ctx.shadowBlur = 0;
                 ctx.fillStyle = '#fde047';
-                ctx.shadowBlur = 10; ctx.shadowColor = '#fde047';
-                ctx.fillRect(-8, -10, 16, 20);
-                ctx.fillStyle = '#000';
-                ctx.font = '900 12px Outfit'; ctx.textAlign = 'center';
-                ctx.fillText('AMMO', 0, 4);
+                ctx.font = '900 8px Outfit'; ctx.textAlign = 'center';
+                ctx.fillText('AMMO', 0, 18);
               }
+
               ctx.restore();
             });
           }

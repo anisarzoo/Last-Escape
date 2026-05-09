@@ -13,8 +13,22 @@ import {
 
 // --- AUDIO ENGINE ---
 let audioCtx = null;
+const noiseCache = {};
+
 const initAudio = () => {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Pre-cache noise buffers
+    const types = { shoot: 0.1, dash: 0.2 };
+    Object.entries(types).forEach(([name, duration]) => {
+      const bufferSize = audioCtx.sampleRate * duration;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      noiseCache[name] = buffer;
+    });
+  }
   if (audioCtx.state === 'suspended') audioCtx.resume();
 };
 
@@ -43,12 +57,8 @@ const playSpatial = (x, y, type, listenerPos) => {
   const now = audioCtx.currentTime;
 
   if (type === 'shoot') {
-    const bufferSize = audioCtx.sampleRate * 0.1;
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
     const noise = audioCtx.createBufferSource();
-    noise.buffer = buffer;
+    noise.buffer = noiseCache.shoot || audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'bandpass';
     filter.frequency.value = 1000;
@@ -82,15 +92,11 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.stop(now + 0.4);
   }
   else if (type === 'dash') {
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = noiseCache.dash || audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'highpass';
     filter.frequency.value = 1000;
-    const bufferSize = audioCtx.sampleRate * 0.2;
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-    const noise = audioCtx.createBufferSource();
-    noise.buffer = buffer;
     noise.connect(filter);
     filter.connect(gain);
     gain.gain.setValueAtTime(0.2, now);

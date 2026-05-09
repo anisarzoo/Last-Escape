@@ -607,11 +607,12 @@ const Game = ({ roomData }) => {
           ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
         });
 
-        if (state && !state.key.carrierId) {
-          ctx.save(); ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)'; ctx.lineWidth = 15; ctx.beginPath();
+        if (state && !state.key.carrierId && state.zoneRadius < 2000) {
+          ctx.save(); 
+          ctx.strokeStyle = 'rgba(244, 63, 94, 0.3)'; ctx.lineWidth = 15; ctx.beginPath();
           ctx.arc(MAZE_WIDTH / 2, MAZE_HEIGHT / 2, state.zoneRadius, 0, Math.PI * 2); ctx.stroke();
-          ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)'; ctx.lineWidth = 5; ctx.stroke();
-          ctx.shadowBlur = 30; ctx.shadowColor = '#f43f5e'; ctx.stroke(); ctx.restore();
+          ctx.strokeStyle = 'rgba(244, 63, 94, 0.7)'; ctx.lineWidth = 4; ctx.stroke();
+          ctx.restore();
         }
 
         // Draw Static Maze from Offscreen Canvas
@@ -727,16 +728,13 @@ const Game = ({ roomData }) => {
           if (!state.key.carrierId && state.zoneRadius < MAZE_WIDTH) {
             mCtx.strokeStyle = '#f43f5e';
             mCtx.lineWidth = 2;
-            mCtx.setLineDash([4, 2]);
             mCtx.beginPath();
             mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, state.zoneRadius*mScale, 0, Math.PI * 2);
             mCtx.stroke();
-            mCtx.setLineDash([]);
-            mCtx.fillStyle = 'rgba(244, 63, 94, 0.1)';
-            mCtx.beginPath();
-            mCtx.rect(0, 0, mSize, mSize);
-            mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, state.zoneRadius*mScale, 0, Math.PI * 2, true);
-            mCtx.fill();
+            
+            // Simple overlay instead of complex hole-punch
+            mCtx.fillStyle = 'rgba(244, 63, 94, 0.05)';
+            mCtx.fillRect(0, 0, mSize, mSize);
           }
           const kPulse = (Math.sin(Date.now()/200)+1)/2;
           mCtx.fillStyle='#eab308'; mCtx.shadowBlur = 10 * kPulse; mCtx.shadowColor = '#eab308'; mCtx.beginPath(); mCtx.arc(state.key.x*mScale, state.key.y*mScale, 4, 0, Math.PI * 2); mCtx.fill(); mCtx.shadowBlur = 0;

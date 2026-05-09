@@ -301,7 +301,7 @@ const Game = ({ roomData }) => {
       if (data.type === 'ricochet') createParticles(data.x, data.y, '#fff', 6, 2, 0.3);
       if (data.type === 'dash-hit') {
         createParticles(data.x, data.y, '#a855f7', 20, 6, 0.8);
-        setScreenShake(Date.now());
+        screenShakeRef.current = Date.now();
       }
     };
     socket.on('play-sound', handleSound);
@@ -406,7 +406,7 @@ const Game = ({ roomData }) => {
         });
       }
 
-      const loopMaze = mazeRef.current || roomData?.maze || MAZE_MAP;
+      const loopMaze = mazeRef.current || MAZE_MAP;
       localBulletsRef.current.forEach(b => {
         const nextX = b.x + b.vx * dt;
         const nextY = b.y + b.vy * dt;
@@ -772,48 +772,29 @@ const Game = ({ roomData }) => {
 
     loopId = requestAnimationFrame(gameLoop);
 
-    socket.on('game-state', (state) => {
-      // Manage Maze Updates & Offscreen Rendering
-      let mazeChanged = false;
-      if (!mazeRef.current) {
-        mazeRef.current = state.maze || MAZE_MAP;
-        mazeChanged = true;
+    socket.on('initial-maze', (maze) => {
+      mazeRef.current = maze;
+      offscreenMazeCanvasRef.current = null;
+      offscreenMinimapCanvasRef.current = null;
+    });
+
+    socket.on('maze-update', ({ x, y, type }) => {
+      if (mazeRef.current) {
+        mazeRef.current[y][x] = type;
+        offscreenMazeCanvasRef.current = null;
+        offscreenMinimapCanvasRef.current = null;
       }
+    });
 
-      if (state.mazeUpdates && state.mazeUpdates.length > 0) {
-        const newMaze = [...mazeRef.current.map(row => [...row])];
-        state.mazeUpdates.forEach(upd => {
-          if (newMaze[upd.y]) newMaze[upd.y][upd.x] = upd.tile;
-        });
-        mazeRef.current = newMaze;
-        mazeChanged = true;
-      } else if (state.maze) {
-        mazeRef.current = state.maze;
-        mazeChanged = true;
-      }
-
-      if (mazeChanged) renderMazeToOffscreen(mazeRef.current);
-
-      // Update High-Freq Ref
-      gameStateRef.current = {
-        ...state,
-        maze: mazeRef.current
-      };
-
-      // Selectively update UI State (lower frequency or only on change)
-      setUiGameState(prev => {
-        // Trigger offscreen re-renders if maze changed
-        if (JSON.stringify(mazeRef.current) !== JSON.stringify(gameStateRef.current?.maze)) {
-          offscreenMazeCanvasRef.current = null;
-          offscreenMinimapCanvasRef.current = null;
-          mazeRef.current = gameStateRef.current.maze;
-        }
-        return gameStateRef.current;
-      });
+    socket.on('game-state', (data) => {
+      gameStateRef.current = data;
+      localBulletsRef.current = data.bullets;
+      
+      setUiGameState(data);
 
       // Kill Feed Logic
       if (prevPlayersRef.current) {
-        state.players.forEach(p => {
+        data.players.forEach(p => {
           const prevP = prevPlayersRef.current[p.id];
           if (prevP && prevP.hp > 0 && p.hp <= 0) {
             const killer = state.players.find(kp => kp.id === p.killedBy);

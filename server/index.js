@@ -241,6 +241,7 @@ io.on('connection', (socket) => {
 
     room.players.push(socket.id);
     io.to(roomId).emit('room-update', buildRoomPayload(room));
+    socket.emit('initial-maze', room.maze);
     console.log(`${playerName} joined room ${roomId}`);
   });
 
@@ -495,7 +496,6 @@ function startGameLoop(roomId) {
       zoneRadius: room.zoneRadius,
       exitLockoutRemaining: room.startTime ? Math.max(0, 30 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
       pickupLockoutRemaining: (room.key.carrierId && room.keyPickupTime) ? Math.max(0, 60 - Math.floor((Date.now() - room.keyPickupTime) / 1000)) : 0,
-      maze: room.maze, // Send dynamic maze state
       time: Math.floor((Date.now() - room.startTime) / 1000)
     });
   }, 1000 / TICK_RATE);
@@ -540,6 +540,7 @@ function updateRoom(roomId) {
           
           if (room.weakWallsHP[wallKey] <= 0) {
             room.maze[nextTileY][nextTileX] = 0;
+            io.to(roomId).emit('maze-update', { x: nextTileX, y: nextTileY, type: 0 });
             io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'wall-break' });
           }
         } else {

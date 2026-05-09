@@ -671,14 +671,17 @@ button:disabled {
 }
 
 .control-item span {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(99, 102, 241, 0.15);
   color: var(--primary);
-  padding: 0.2rem 0.6rem;
-  border-radius: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
   font-size: 0.75rem;
-  font-family: monospace;
-  border: 1px solid var(--primary-glow);
-  min-width: 50px;
+  font-family: 'Syncopate', sans-serif;
+  font-weight: 700;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+  min-width: 65px;
+  text-transform: uppercase;
   text-align: center;
 }
 
@@ -1062,7 +1065,7 @@ button:disabled {
   position: absolute;
   top: 2rem;
   right: 2rem;
-  width: 280px;
+  width: 320px;
   background: rgba(15, 23, 42, 0.25); /* More transparent */
   backdrop-filter: blur(12px); /* Slightly less blur for clarity */
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1133,7 +1136,7 @@ button:disabled {
 
 .hud-stats-row {
   display: flex;
-  justify-content: space-between;
+  gap: 1rem;
   align-items: center;
 }
 
@@ -1598,3 +1601,190 @@ button:disabled {
   }
 }
 
+.hud-reload-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid var(--danger);
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.6rem;
+  color: var(--danger);
+  font-weight: 900;
+  font-size: 0.75rem;
+  letter-spacing: 0.1rem;
+  animation: reload-pulse 1s infinite;
+}
+
+@keyframes reload-pulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.pulse-icon {
+  animation: icon-spin 1.5s linear infinite;
+}
+
+@keyframes icon-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.ammo-stat {
+  background: rgba(253, 224, 71, 0.1) !important;
+  border-color: rgba(253, 224, 71, 0.3) !important;
+  color: #fde047 !important;
+}
+
+.ammo-stat .hud-stat-icon {
+  color: #fde047;
+}
+
+/* Enhanced Particles for Debris */
+.debris-particle {
+  pointer-events: none;
+  position: absolute;
+  background: #451a03;
+  border: 1px solid #78350f;
+}
+
+.ammo-stat-visual {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  flex-shrink: 0;
+}
+
+.ammo-pips {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.ammo-pip {
+  width: 4px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.ammo-pip.filled {
+  background: #fde047;
+  box-shadow: 0 0 8px rgba(253, 224, 71, 0.6);
+  height: 18px;
+}
+
+.ammo-reserve {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 0.75rem;
+}
+
+.reserve-label {
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: var(--text-dim);
+  letter-spacing: 0.05rem;
+  margin-bottom: 2px;
+}
+
+.reserve-value {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #fde047;
+}
+
+@media (max-width: 920px), (max-height: 500px) {
+  .hud-container {
+    top: 1rem;
+    right: 1rem;
+    width: 280px;
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .hud-stats-row {
+    gap: 0.5rem;
+    justify-content: space-between;
+  }
+
+  .hud-stat-item {
+    font-size: 0.7rem;
+    gap: 0.3rem;
+  }
+
+  .hud-player-name {
+    font-size: 0.8rem;
+  }
+
+  .hud-hp-bar-bg {
+    height: 8px;
+  }
+
+  .ammo-stat-visual {
+    min-width: auto;
+    padding: 0;
+    gap: 0.4rem;
+  }
+
+  .ammo-pip {
+    width: 3px;
+    height: 10px;
+  }
+
+  .ammo-pip.filled {
+    height: 14px;
+  }
+
+  .reserve-value {
+    font-size: 0.8rem;
+  }
+
+  .minimap-wrapper {
+    top: 1rem;
+    left: 1rem;
+    width: 110px;
+    height: 110px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .minimap-canvas-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 0.6rem;
+  }
+
+  .minimap-canvas-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    object-fit: contain;
+  }
+
+  .key-carrier-alert {
+    top: 1rem;
+    padding: 0.4rem 1rem;
+    font-size: 0.6rem;
+    gap: 0.4rem;
+    max-width: 220px;
+    text-align: center;
+    border-radius: 0.5rem;
+  }
+
+  .key-carrier-alert svg {
+    width: 14px;
+    height: 14px;
+  }
+}

@@ -236,7 +236,12 @@ io.on('connection', (socket) => {
       aimAngle: 0,
       totalKeyHoldTime: 0,
       lastDashTime: 0,
-      isDashing: false
+      isDashing: false,
+      ammo: 6,
+      maxAmmo: 6,
+      reserveAmmo: 12,
+      isReloading: false,
+      lastReloadTime: 0
     };
 
     room.players.push(socket.id);
@@ -366,13 +371,35 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('player-reload', () => {
+    const player = players[socket.id];
+    if (player && player.hp > 0 && !player.isReloading && player.ammo < player.maxAmmo && player.reserveAmmo > 0) {
+      player.isReloading = true;
+      player.lastReloadTime = Date.now();
+      io.to(player.roomId).emit('play-sound', { x: player.x, y: player.y, type: 'reload-start' });
+      
+      setTimeout(() => {
+        const p = players[socket.id];
+        if (p && p.isReloading) {
+          const needed = p.maxAmmo - p.ammo;
+          const toReload = Math.min(needed, p.reserveAmmo);
+          p.ammo += toReload;
+          p.reserveAmmo -= toReload;
+          p.isReloading = false;
+          io.to(p.roomId).emit('play-sound', { x: p.x, y: p.y, type: 'reload-end' });
+        }
+      }, 1500); // 1.5s reload
+    }
+  });
+
   socket.on('player-shoot', () => {
     const player = players[socket.id];
     const now = Date.now();
-    if (player && player.hp > 0 && now - player.lastShotTime > 500) {
+    if (player && player.hp > 0 && !player.isReloading && player.ammo > 0 && now - player.lastShotTime > 500) {
       const room = rooms[player.roomId];
       if (room && room.gameStarted) {
         player.lastShotTime = now;
+        player.ammo -= 1;
         const bullet = {
           id: Math.random().toString(36).substr(2, 9),
           ownerId: socket.id,
@@ -486,17 +513,24 @@ function startGameLoop(roomId) {
         color: p.color,
         range: p.range,
         killedBy: p.killedBy || null,
-        teamId: p.teamId || null
+        teamId: p.teamId || null,
+        ammo: p.ammo,
+        maxAmmo: p.maxAmmo,
+        reserveAmmo: p.reserveAmmo,
+        isReloading: p.isReloading,
+        lastReloadTime: p.lastReloadTime
       })),
       bullets: room.bullets.map(b => ({ 
         id: b.id, x: b.x, y: b.y, vx: b.vx, vy: b.vy, bounces: b.bounces 
       })),
+      pickups: room.pickups || [],
       key: room.key,
       keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,
       exitLockoutRemaining: room.startTime ? Math.max(0, 30 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
       pickupLockoutRemaining: (room.key.carrierId && room.keyPickupTime) ? Math.max(0, 60 - Math.floor((Date.now() - room.keyPickupTime) / 1000)) : 0,
-      time: Math.floor((Date.now() - room.startTime) / 1000)
+      time: Math.floor((Date.now() - room.startTime) / 1000),
+      weakWallsHP: room.weakWallsHP || {}
     });
   }, 1000 / TICK_RATE);
 }
@@ -504,6 +538,32 @@ function startGameLoop(roomId) {
 function updateRoom(roomId) {
   const room = rooms[roomId];
   if (!room) return;
+
+  // Handle Pickups Spawning
+  if (!room.lastPickupSpawn || Date.now() - room.lastPickupSpawn > 10000) {
+    room.lastPickupSpawn = Date.now();
+    if (!room.pickups) room.pickups = [];
+    if (room.pickups.length < 5) {
+      // Find a random empty spot
+      let spawnX, spawnY, valid = false;
+      for(let i=0; i<10; i++) {
+        spawnX = Math.floor(Math.random() * (MAZE_WIDTH / TILE_SIZE));
+        spawnY = Math.floor(Math.random() * (MAZE_HEIGHT / TILE_SIZE));
+        if (room.maze[spawnY][spawnX] === 0) {
+          valid = true;
+          break;
+        }
+      }
+      if (valid) {
+        room.pickups.push({
+          id: Math.random().toString(36).substr(2, 9),
+          x: (spawnX + 0.5) * TILE_SIZE,
+          y: (spawnY + 0.5) * TILE_SIZE,
+          type: Math.random() > 0.5 ? 'health' : 'ammo'
+        });
+      }
+    }
+  }
 
   // Shrink Zone (only if no one has key)
   if (!room.key.carrierId && !room.zoneRemoved) {
@@ -541,7 +601,9 @@ function updateRoom(roomId) {
           if (room.weakWallsHP[wallKey] <= 0) {
             room.maze[nextTileY][nextTileX] = 0;
             io.to(roomId).emit('maze-update', { x: nextTileX, y: nextTileY, type: 0 });
-            io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'wall-break' });
+            io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'hit' });
+          } else {
+            io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'ricochet' });
           }
         } else {
           // Optional: sound for invulnerable hit
@@ -610,7 +672,36 @@ function updateRoom(roomId) {
         if (p.hp <= 0) {
           applyElimination(room, p, b.ownerId);
         }
+        
+        // Damage Event for UI
+        io.to(roomId).emit('damage-dealt', { x: p.x, y: p.y, amount: damage });
+        
         break;
+      }
+    }
+  }
+
+  // Check Pickup Collisions
+  if (room.pickups) {
+    for (let i = room.pickups.length - 1; i >= 0; i--) {
+      const pick = room.pickups[i];
+      for (const pId of room.players) {
+        const p = players[pId];
+        if (!p || p.hp <= 0) continue;
+        const dist = Math.sqrt((p.x - pick.x)**2 + (p.y - pick.y)**2);
+        if (dist < 30) {
+          if (pick.type === 'health' && p.hp < 100) {
+            p.hp = Math.min(100, p.hp + 30);
+            room.pickups.splice(i, 1);
+            io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'pickup-health' });
+            break;
+          } else if (pick.type === 'ammo') {
+            p.reserveAmmo += 12;
+            room.pickups.splice(i, 1);
+            io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'pickup-ammo' });
+            break;
+          }
+        }
       }
     }
   }

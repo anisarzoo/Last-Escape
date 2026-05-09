@@ -187,6 +187,10 @@ function App() {
               <h5>Arena Lock</h5>
               <p>Walls are <span>structurally reinforced</span> and invulnerable for the first <span>30 seconds</span> of the mission.</p>
             </div>
+            <div className="rules-section">
+              <h5>Supply Drops</h5>
+              <p><span>Strategic resources</span> spawn periodically. Secure <span>Medkits</span> for HP or <span>Munition Packs</span> to replenish reserve ammo.</p>
+            </div>
           </div>
         </div>
 
@@ -242,6 +246,12 @@ function App() {
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
                     maxLength={15}
+                    autoFocus={!playerName}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && playerName) {
+                        setShowCreateOptions(true);
+                      }
+                    }}
                   />
                   <button 
                     onClick={() => setShowCreateOptions(true)} 
@@ -256,6 +266,13 @@ function App() {
                     value={roomId}
                     onChange={(e) => setRoomId(e.target.value.toUpperCase())}
                     className="room-id-input"
+                    autoFocus={!!playerName}
+                    maxLength={6}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && playerName && roomId) {
+                        handleJoin();
+                      }
+                    }}
                   />
                   <button onClick={handleJoin} disabled={!playerName || !roomId}>
                     Join Room
@@ -369,6 +386,7 @@ function App() {
                 <li><span>REWARD</span>: Eliminating opponents restores 25% HP and boosts weapon range.</li>
                 <li><span>ZONE</span>: The safe zone shrinks continuously until the key is secured.</li>
                 <li><span>ARENA</span>: Walls are invulnerable for the first 30s of the mission.</li>
+                <li><span>SUPPLY</span>: Look for Health Kits and Ammo Packs spawning in the maze.</li>
               </ul>
             </div>
             
@@ -381,7 +399,7 @@ function App() {
                 <div className="control-item"><span>WASD / ARROWS</span> MOVE</div>
                 <div className="control-item"><span>MOUSE</span> AIM</div>
                 <div className="control-item"><span>LEFT CLICK</span> FIRE</div>
-                <div className="control-item"><span>SHIFT</span> DASH</div>
+                <div className="control-item"><span>SHIFT / R</span> DASH / RELOAD</div>
               </div>
             </div>
           </div>

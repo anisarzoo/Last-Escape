@@ -155,6 +155,7 @@ const Game = ({ roomData }) => {
   const canvasRef = useRef(null);
   const minimapCanvasRef = useRef(null);
   const offscreenMazeCanvasRef = useRef(null);
+  const offscreenMinimapCanvasRef = useRef(null);
   const posRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
   const aimAngleRef = useRef(0);
   
@@ -381,6 +382,11 @@ const Game = ({ roomData }) => {
 
       const state = gameStateRef.current;
       if (state) {
+        const activeIds = state.players.map(p => p.id);
+        Object.keys(smoothedPlayersRef.current).forEach(id => {
+          if (!activeIds.includes(id)) delete smoothedPlayersRef.current[id];
+        });
+
         state.players.forEach(p => {
           if (p.id === socket.id) return;
           if (!smoothedPlayersRef.current[p.id]) {
@@ -603,9 +609,10 @@ const Game = ({ roomData }) => {
         particlesRef.current.forEach((p, i) => {
           p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.02 * dt;
           if (p.life <= 0) { particlesRef.current.splice(i, 1); return; }
-          ctx.save(); ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
+          ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
         });
+        ctx.globalAlpha = 1.0;
 
         if (state && !state.key.carrierId && state.zoneRadius < 2000) {
           ctx.save(); 
@@ -649,8 +656,8 @@ const Game = ({ roomData }) => {
 
         if (state) {
           localBulletsRef.current.forEach(b => {
-            ctx.fillStyle = '#fde047'; ctx.shadowBlur = 10; ctx.shadowColor = '#fde047';
-            ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(253, 224, 71, 0.4)'; ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
           });
 
           const k = state.key;
@@ -699,6 +706,8 @@ const Game = ({ roomData }) => {
           const mCtx = mCanvas.getContext('2d');
           const dpr = window.devicePixelRatio || 1;
           const mSize = 160;
+          const mScale = mSize / MAZE_WIDTH;
+
           if (mCanvas.width !== Math.floor(mSize * dpr) || mCanvas.height !== Math.floor(mSize * dpr)) {
             mCanvas.width = Math.floor(mSize * dpr);
             mCanvas.height = Math.floor(mSize * dpr);
@@ -706,24 +715,36 @@ const Game = ({ roomData }) => {
             mCanvas.style.height = `${mSize}px`;
           }
           mCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          const mScale = mSize / MAZE_WIDTH;
           mCtx.clearRect(0,0,mSize,mSize);
           
-          const currentMaze = mazeRef.current || MAZE_MAP;
-          currentMaze.forEach((row, y) => {
-            row.forEach((tile, x) => {
-              if (tile === 1) {
-                mCtx.fillStyle = 'rgba(255,255,255,0.15)';
-                mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
-              } else if (tile === 3) {
-                mCtx.fillStyle = 'rgba(245, 158, 11, 0.4)';
-                mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
-              } else if (tile === 2) {
-                mCtx.fillStyle = 'rgba(16, 185, 129, 0.3)';
-                mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
-              }
+          // Pre-render Minimap Walls if needed
+          if (!offscreenMinimapCanvasRef.current) {
+            offscreenMinimapCanvasRef.current = document.createElement('canvas');
+            offscreenMinimapCanvasRef.current.width = mSize * dpr;
+            offscreenMinimapCanvasRef.current.height = mSize * dpr;
+            const omCtx = offscreenMinimapCanvasRef.current.getContext('2d');
+            omCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            
+            const currentMaze = mazeRef.current || MAZE_MAP;
+            currentMaze.forEach((row, y) => {
+              row.forEach((tile, x) => {
+                if (tile === 1) {
+                  omCtx.fillStyle = 'rgba(255,255,255,0.15)';
+                  omCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
+                } else if (tile === 3) {
+                  omCtx.fillStyle = 'rgba(245, 158, 11, 0.4)';
+                  omCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
+                } else if (tile === 2) {
+                  omCtx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+                  omCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
+                }
+              });
             });
-          });
+          }
+
+          if (offscreenMinimapCanvasRef.current) {
+            mCtx.drawImage(offscreenMinimapCanvasRef.current, 0, 0, mSize, mSize);
+          }
           
           if (!state.key.carrierId && state.zoneRadius < MAZE_WIDTH) {
             mCtx.strokeStyle = '#f43f5e';
@@ -731,8 +752,6 @@ const Game = ({ roomData }) => {
             mCtx.beginPath();
             mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, state.zoneRadius*mScale, 0, Math.PI * 2);
             mCtx.stroke();
-            
-            // Simple overlay instead of complex hole-punch
             mCtx.fillStyle = 'rgba(244, 63, 94, 0.05)';
             mCtx.fillRect(0, 0, mSize, mSize);
           }
@@ -777,8 +796,12 @@ const Game = ({ roomData }) => {
 
       // Selectively update UI State (lower frequency or only on change)
       setUiGameState(prev => {
-        // Only trigger re-render if essential UI data changed
-        // For simplicity, we trigger it, but we can throttle this if needed.
+        // Trigger offscreen re-renders if maze changed
+        if (JSON.stringify(mazeRef.current) !== JSON.stringify(gameStateRef.current?.maze)) {
+          offscreenMazeCanvasRef.current = null;
+          offscreenMinimapCanvasRef.current = null;
+          mazeRef.current = gameStateRef.current.maze;
+        }
         return gameStateRef.current;
       });
 

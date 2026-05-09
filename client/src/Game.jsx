@@ -620,6 +620,31 @@ const Game = ({ roomData }) => {
         });
         ctx.globalAlpha = 1.0;
 
+        // Lazy-render Offscreen Maze
+        if (!offscreenMazeCanvasRef.current && mazeRef.current) {
+          const m = mazeRef.current;
+          const canvas = document.createElement('canvas');
+          canvas.width = MAZE_WIDTH;
+          canvas.height = MAZE_HEIGHT;
+          const mCtx = canvas.getContext('2d');
+          
+          m.forEach((row, y) => {
+            row.forEach((tile, x) => {
+              const tx = x * TILE_SIZE, ty = y * TILE_SIZE;
+              if (tile === 1) {
+                const grad = mCtx.createLinearGradient(tx, ty, tx + TILE_SIZE, ty + TILE_SIZE);
+                grad.addColorStop(0, '#1e293b'); grad.addColorStop(1, '#0f172a');
+                mCtx.fillStyle = grad; mCtx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                mCtx.strokeStyle = '#334155'; mCtx.lineWidth = 1; mCtx.strokeRect(tx + 0.5, ty + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+              } else if (tile === 3) {
+                mCtx.fillStyle = '#b45309'; mCtx.fillRect(tx + 2, ty + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                mCtx.strokeStyle = '#f59e0b'; mCtx.lineWidth = 2; mCtx.strokeRect(tx + 4, ty + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+              }
+            });
+          });
+          offscreenMazeCanvasRef.current = canvas;
+        }
+
         if (state && !state.key.carrierId && state.zoneRadius < 2000) {
           ctx.save(); 
           ctx.strokeStyle = 'rgba(244, 63, 94, 0.3)'; ctx.lineWidth = 15; ctx.beginPath();

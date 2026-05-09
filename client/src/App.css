@@ -1405,11 +1405,25 @@ button:disabled {
 .dash-btn {
   width: 60px;
   height: 60px;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.dash-btn.can-dash {
   border-color: var(--primary-glow);
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+  color: #fff;
+  box-shadow: 0 0 20px var(--primary-glow);
+  animation: dash-ready-pulse 2s infinite;
+}
+
+@keyframes dash-ready-pulse {
+  0%, 100% { box-shadow: 0 0 15px var(--primary-glow); }
+  50% { box-shadow: 0 0 30px var(--primary-glow); }
 }
 
 /* Portrait Lock Overlay */
+
 .landscape-lock {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;

@@ -1207,9 +1207,13 @@ const Game = ({ roomData }) => {
       {isMobile && !isPortrait && !gameOver && (
         <div className="mobile-controls-layer">
           <div className="mobile-controls right">
-            <button className="mobile-btn dash-btn" onTouchStart={handleMobileDash}>
+            <button 
+              className={`mobile-btn dash-btn ${dashCDRemaining === 0 ? 'can-dash' : ''}`} 
+              onTouchStart={handleMobileDash}
+            >
               <Wind size={24} />
             </button>
+
             <button
               className={`mobile-btn reload-btn ${localPlayer?.isReloading ? 'reloading' : ''} ${localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0 ? 'can-reload' : ''} ${localPlayer && localPlayer.ammo === 0 && localPlayer.reserveAmmo === 0 ? 'out-of-ammo' : ''}`}
               onTouchStart={(e) => {

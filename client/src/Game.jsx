@@ -203,6 +203,7 @@ const Game = ({ roomData }) => {
   const dashTimeRef = useRef(0);
   const particlesRef = useRef([]);
   const lastEmitTimeRef = useRef(0);
+  const lastMoveEmitTimeRef = useRef(0);
   const velRef = useRef({ x: 0, y: 0 });
   const smoothedPlayersRef = useRef({});
   const smoothedCameraRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
@@ -611,23 +612,14 @@ const Game = ({ roomData }) => {
           ctx.translate(Math.random() * intensity - intensity/2, Math.random() * intensity - intensity/2);
         }
         ctx.translate(camX, camY);
-
-        particlesRef.current.forEach((p, i) => {
-          p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.02 * dt;
-          if (p.life <= 0) { particlesRef.current.splice(i, 1); return; }
-          ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
-        });
-        ctx.globalAlpha = 1.0;
-
-        // Lazy-render Offscreen Maze
-        if (!offscreenMazeCanvasRef.current) {
-          const m = mazeRef.current || MAZE_MAP;
+        
+        // 0. Lazy-render Offscreen Maze if needed
+        if (!offscreenMazeCanvasRef.current && mazeRef.current) {
+          const m = mazeRef.current;
           const canvas = document.createElement('canvas');
           canvas.width = MAZE_WIDTH;
           canvas.height = MAZE_HEIGHT;
           const mCtx = canvas.getContext('2d');
-          
           m.forEach((row, y) => {
             row.forEach((tile, x) => {
               const tx = x * TILE_SIZE, ty = y * TILE_SIZE;
@@ -645,6 +637,23 @@ const Game = ({ roomData }) => {
           offscreenMazeCanvasRef.current = canvas;
         }
 
+        // 1. Draw Maze Background (Bottom Layer)
+        if (offscreenMazeCanvasRef.current) {
+          const camX_val = smoothedCameraRef.current.x;
+          const camY_val = smoothedCameraRef.current.y;
+          
+          // Source clipping: only draw the visible portion
+          const viewW = width, viewH = height;
+          const sx = Math.max(0, camX_val - viewW / 2);
+          const sy = Math.max(0, camY_val - viewH / 2);
+          const sWidth = Math.min(MAZE_WIDTH - sx, viewW);
+          const sHeight = Math.min(MAZE_HEIGHT - sy, viewH);
+          
+          const dx = sx, dy = sy;
+          ctx.drawImage(offscreenMazeCanvasRef.current, sx, sy, sWidth, sHeight, dx, dy, sWidth, sHeight);
+        }
+
+        // 2. Draw Zone
         if (state && !state.key.carrierId && state.zoneRadius < 2000) {
           ctx.save(); 
           ctx.strokeStyle = 'rgba(244, 63, 94, 0.3)'; ctx.lineWidth = 15; ctx.beginPath();
@@ -653,10 +662,14 @@ const Game = ({ roomData }) => {
           ctx.restore();
         }
 
-        // Draw Static Maze from Offscreen Canvas
-        if (offscreenMazeCanvasRef.current) {
-          ctx.drawImage(offscreenMazeCanvasRef.current, 0, 0);
-        }
+        // 3. Draw Particles
+        particlesRef.current.forEach((p, i) => {
+          p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.02 * dt;
+          if (p.life <= 0) { particlesRef.current.splice(i, 1); return; }
+          ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
 
         // Draw Dynamic Maze Elements (Exit Gate)
         const activeMaze = loopMaze;

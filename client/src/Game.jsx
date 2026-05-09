@@ -8,8 +8,10 @@ import {
   Wind,
   Zap,
   Crosshair,
-  Key
+  Key,
+  RotateCcw
 } from 'lucide-react';
+
 
 // --- AUDIO ENGINE ---
 let audioCtx = null;
@@ -1209,8 +1211,10 @@ const Game = ({ roomData }) => {
               <Wind size={24} />
             </button>
             <button
-              className="mobile-btn reload-btn"
+              className={`mobile-btn reload-btn ${localPlayer?.isReloading ? 'reloading' : ''} ${localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0 ? 'can-reload' : ''} ${localPlayer && localPlayer.ammo === 0 && localPlayer.reserveAmmo === 0 ? 'out-of-ammo' : ''}`}
               onTouchStart={(e) => {
+
+
                 e.stopPropagation();
                 if (localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0) {
                   socket.emit('player-reload');
@@ -1218,8 +1222,9 @@ const Game = ({ roomData }) => {
               }}
               style={{ marginTop: '10px' }}
             >
-              <Zap size={24} />
+              <RotateCcw size={24} />
             </button>
+
           </div>
 
           {joystickUI.move.active && (

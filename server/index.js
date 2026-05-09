@@ -356,7 +356,7 @@ io.on('connection', (socket) => {
 
   socket.on('player-dash', () => {
     const player = players[socket.id];
-    if (player && player.hp > 0 && Date.now() - player.lastDashTime > 3000) {
+    if (player && player.hp > 0 && Date.now() - player.lastDashTime > 4000) {
       player.lastDashTime = Date.now();
       player.isDashing = true;
       setTimeout(() => {

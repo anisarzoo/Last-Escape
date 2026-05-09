@@ -154,9 +154,16 @@ const drawKey = (ctx, x, y, pulse) => {
 const Game = ({ roomData }) => {
   const canvasRef = useRef(null);
   const minimapCanvasRef = useRef(null);
+  const offscreenMazeCanvasRef = useRef(null);
   const posRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
   const aimAngleRef = useRef(0);
-  const [gameState, setGameState] = useState(null);
+  
+  // High-frequency state moved to Refs
+  const gameStateRef = useRef(null);
+  const mazeRef = useRef(null);
+  
+  // UI-triggering state
+  const [uiGameState, setUiGameState] = useState(null);
   const [gameOver, setGameOver] = useState(null);
   const [ping, setPing] = useState(0);
 
@@ -175,8 +182,12 @@ const Game = ({ roomData }) => {
   const [isSpectating, setIsSpectating] = useState(false);
   const [spectateTargetId, setSpectateTargetId] = useState(null);
   const [dashCDRemaining, setDashCDRemaining] = useState(0);
-  const [muzzleFlash, setMuzzleFlash] = useState(0);
-  const [screenShake, setScreenShake] = useState(0);
+  
+  // High-frequency visuals to Refs
+  const muzzleFlashRef = useRef(0);
+  const screenShakeRef = useRef(0);
+  const gameOverRef = useRef(null);
+  const isMobileRef = useRef(false);
   const [killFeed, setKillFeed] = useState([]);
   const keysRef = useRef({});
   const mousePosRef = useRef({ x: 0, y: 0 });
@@ -190,6 +201,7 @@ const Game = ({ roomData }) => {
   const smoothedCameraRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
   const localBulletsRef = useRef([]);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const dimsRef = useRef({ width: window.innerWidth, height: window.innerHeight });
   const [isMobile, setIsMobile] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
 
@@ -205,15 +217,15 @@ const Game = ({ roomData }) => {
   const shootTouchStartRef = useRef({ x: 0, y: 0 });
 
   const prevPlayersRef = useRef({});
-  const localPlayer = gameState?.players.find((p) => p.id === socket.id);
-  const isTeamMode = Boolean(gameState?.isTeamMode || roomData?.isTeamMode);
+  const localPlayer = uiGameState?.players.find((p) => p.id === socket.id);
+  const isTeamMode = Boolean(uiGameState?.isTeamMode || roomData?.isTeamMode);
   const isEliminated = Boolean(localPlayer && localPlayer.hp <= 0);
   const activeSpectating = isSpectating || (isTeamMode && isEliminated && !gameOver);
 
   const spectateCandidates = useMemo(() => {
-    if (!gameState || !localPlayer) return [];
+    if (!uiGameState || !localPlayer) return [];
 
-    const aliveOthers = gameState.players.filter((p) => p.id !== socket.id && p.hp > 0);
+    const aliveOthers = uiGameState.players.filter((p) => p.id !== socket.id && p.hp > 0);
     if (aliveOthers.length === 0) return [];
 
     if (isTeamMode && localPlayer.teamId) {
@@ -225,7 +237,7 @@ const Game = ({ roomData }) => {
     const killer = aliveOthers.find((p) => p.id === localPlayer.killedBy);
     if (!killer) return aliveOthers;
     return [killer, ...aliveOthers.filter((p) => p.id !== killer.id)];
-  }, [gameState, isTeamMode, localPlayer]);
+  }, [uiGameState, isTeamMode, localPlayer]);
 
   const spectateTarget = useMemo(() => {
     if (spectateCandidates.length === 0) return null;
@@ -234,9 +246,13 @@ const Game = ({ roomData }) => {
 
   useEffect(() => {
     const handleResize = () => {
-      setDimensions({ width: window.innerWidth, height: window.innerHeight });
-      setIsPortrait(window.innerHeight > window.innerWidth);
-      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0));
+      const w = window.innerWidth, h = window.innerHeight;
+      setDimensions({ width: w, height: h });
+      dimsRef.current = { width: w, height: h };
+      setIsPortrait(h > w);
+      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0);
+      setIsMobile(mobile);
+      isMobileRef.current = mobile;
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -245,7 +261,7 @@ const Game = ({ roomData }) => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setDashCDRemaining(Math.max(0, 3000 - (Date.now() - dashCooldownRef.current)));
+      setDashCDRemaining(Math.max(0, 4000 - (Date.now() - dashCooldownRef.current)));
     }, 100);
     return () => clearInterval(timer);
   }, []);
@@ -270,7 +286,7 @@ const Game = ({ roomData }) => {
       playSpatial(data.x, data.y, data.type, posRef.current);
       if (data.type === 'hit') {
         createParticles(data.x, data.y, '#f43f5e', 12, 4);
-        setScreenShake(Date.now());
+        screenShakeRef.current = Date.now();
       }
       if (data.type === 'shoot') createParticles(data.x, data.y, 'rgba(147, 197, 253, 0.5)', 3, 1, 0.2);
       if (data.type === 'dash') createParticles(data.x, data.y, '#6366f1', 15, 3);
@@ -291,7 +307,7 @@ const Game = ({ roomData }) => {
       if (data.id === socket.id) {
         velRef.current.x += data.vx;
         velRef.current.y += data.vy;
-        setScreenShake(Date.now());
+        screenShakeRef.current = Date.now();
       }
     };
     socket.on('player-knockback', handleKnockback);
@@ -330,6 +346,32 @@ const Game = ({ roomData }) => {
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('contextmenu', handleContextMenu);
 
+    const renderMazeToOffscreen = (maze) => {
+      if (!maze) return;
+      if (!offscreenMazeCanvasRef.current) {
+        offscreenMazeCanvasRef.current = document.createElement('canvas');
+      }
+      const mCanvas = offscreenMazeCanvasRef.current;
+      mCanvas.width = MAZE_WIDTH;
+      mCanvas.height = MAZE_HEIGHT;
+      const mCtx = mCanvas.getContext('2d');
+      mCtx.clearRect(0, 0, MAZE_WIDTH, MAZE_HEIGHT);
+
+      maze.forEach((row, y) => {
+        row.forEach((tile, x) => {
+          const tx = x * TILE_SIZE, ty = y * TILE_SIZE;
+          if (tile === 1) {
+            mCtx.fillStyle = '#1e293b'; mCtx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+            mCtx.strokeStyle = '#6366f1'; mCtx.lineWidth = 2; mCtx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
+          } else if (tile === 3) {
+            mCtx.fillStyle = '#451a03'; mCtx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+            mCtx.strokeStyle = '#f59e0b'; mCtx.lineWidth = 2; mCtx.strokeRect(tx+4, ty+4, TILE_SIZE-8, TILE_SIZE-8);
+            mCtx.beginPath(); mCtx.strokeStyle = 'rgba(245, 158, 11, 0.3)'; mCtx.moveTo(tx+10, ty+10); mCtx.lineTo(tx+TILE_SIZE-10, ty+TILE_SIZE-10); mCtx.stroke();
+          }
+        });
+      });
+    };
+
     let lastTime = performance.now();
     let loopId;
 
@@ -337,8 +379,9 @@ const Game = ({ roomData }) => {
       const dt = Math.min(2, (time - lastTime) / 16.66);
       lastTime = time;
 
-      if (gameState) {
-        gameState.players.forEach(p => {
+      const state = gameStateRef.current;
+      if (state) {
+        state.players.forEach(p => {
           if (p.id === socket.id) return;
           if (!smoothedPlayersRef.current[p.id]) {
             smoothedPlayersRef.current[p.id] = { x: p.x, y: p.y, vx: 0, vy: 0 };
@@ -346,12 +389,12 @@ const Game = ({ roomData }) => {
           const sp = smoothedPlayersRef.current[p.id];
           sp.vx *= Math.pow(0.88, dt); sp.vy *= Math.pow(0.88, dt);
           sp.x += sp.vx * dt; sp.y += sp.vy * dt;
-          sp.x += (p.x - sp.x) * 0.2 * dt; // Smoother player interpolation
+          sp.x += (p.x - sp.x) * 0.2 * dt;
           sp.y += (p.y - sp.y) * 0.2 * dt;
         });
       }
 
-      const loopMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
+      const loopMaze = mazeRef.current || roomData?.maze || MAZE_MAP;
       localBulletsRef.current.forEach(b => {
         const nextX = b.x + b.vx * dt;
         const nextY = b.y + b.vy * dt;
@@ -376,7 +419,7 @@ const Game = ({ roomData }) => {
         }
       });
 
-      if (!gameOver) {
+      if (!gameOverRef.current) {
         const now = Date.now();
         const isDashing = now - dashTimeRef.current < 120;
         const keys = keysRef.current;
@@ -387,12 +430,11 @@ const Game = ({ roomData }) => {
           createParticles(posRef.current.x, posRef.current.y, 'rgba(99, 102, 241, 0.4)', 2, 0.5, 0.5);
         }
 
-        if (keys['Shift'] && now - dashCooldownRef.current > 3000 && !isDashing) {
+        if (keys['Shift'] && now - dashCooldownRef.current > 4000 && !isDashing) {
           dashTimeRef.current = now;
           dashCooldownRef.current = now;
           socket.emit('player-dash');
           socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
-          // Prevent auto-dash when holding the key/button
           keys['Shift'] = false;
         }
 
@@ -402,8 +444,7 @@ const Game = ({ roomData }) => {
         if (keys['ArrowLeft'] || keys['a'] || keys['A']) inputX -= 1;
         if (keys['ArrowRight'] || keys['d'] || keys['D']) inputX += 1;
 
-        // Mobile Move Joystick Input
-        if (isMobile && moveJoystickRef.current.active) {
+        if (moveJoystickRef.current.active) {
           inputX = moveJoystickRef.current.x;
           inputY = moveJoystickRef.current.y;
         }
@@ -433,15 +474,15 @@ const Game = ({ roomData }) => {
         }
 
         let targetAngle = aimAngleRef.current;
-        if (isMobile) {
+        if (isMobileRef.current) {
           if (aimJoystickRef.current.active) {
             targetAngle = Math.atan2(aimJoystickRef.current.y, aimJoystickRef.current.x);
           }
           else if (inputX !== 0 || inputY !== 0) targetAngle = Math.atan2(inputY, inputX);
         } else {
-          // Mouse Aiming for Desktop
-          const camX = dimensions.width / 2 - smoothedCameraRef.current.x;
-          const camY = dimensions.height / 2 - smoothedCameraRef.current.y;
+          const { width, height } = dimsRef.current;
+          const camX = width / 2 - smoothedCameraRef.current.x;
+          const camY = height / 2 - smoothedCameraRef.current.y;
           const playerScreenX = posRef.current.x + camX;
           const playerScreenY = posRef.current.y + camY;
           targetAngle = Math.atan2(mousePosRef.current.y - playerScreenY, mousePosRef.current.x - playerScreenX);
@@ -452,18 +493,15 @@ const Game = ({ roomData }) => {
 
         const r = 14;
         let px = posRef.current.x, py = posRef.current.y;
-
-        const isExitLocked = !gameState?.key?.carrierId || (gameState?.pickupLockoutRemaining > 0);
+        const isExitLocked = !state?.key?.carrierId || (state?.pickupLockoutRemaining > 0);
 
         let tx = px + dx;
         if (Math.abs(inputY) > 0.1 && Math.abs(inputX) < 0.5) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.25 * dt;
         let canX = true;
-        
-        // World Boundary Check (Locked while lockout active)
         if (isExitLocked && (tx < r || tx > MAZE_WIDTH - r)) canX = false;
         
         if (canX) {
-          const currentMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
+          const currentMaze = loopMaze;
           const curPts = [{x:px-r,y:py-r},{x:px+r,y:py-r},{x:px-r,y:py+r},{x:px+r,y:py+r}];
           const isCurrentlyInExit = curPts.some(p => currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)] === 2);
           const xPts = [{x:tx-r,y:py-r},{x:tx+r,y:py-r},{x:tx-r,y:py+r},{x:tx+r,y:py+r}];
@@ -477,12 +515,10 @@ const Game = ({ roomData }) => {
         let ty = py + dy;
         if (Math.abs(inputX) > 0.1 && Math.abs(inputY) < 0.5) ty += ((Math.floor(py / TILE_SIZE) + 0.5) * TILE_SIZE - py) * 0.25 * dt;
         let canY = true;
-
-        // World Boundary Check (Locked while lockout active)
         if (isExitLocked && (ty < r || ty > MAZE_HEIGHT - r)) canY = false;
 
         if (canY) {
-          const currentMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
+          const currentMaze = loopMaze;
           const curPts = [{x:px-r,y:py-r},{x:px+r,y:py-r},{x:px-r,y:py+r},{x:px+r,y:py+r}];
           const isCurrentlyInExit = curPts.some(p => currentMaze[Math.floor(p.y/TILE_SIZE)]?.[Math.floor(p.x/TILE_SIZE)] === 2);
           const yPts = [{x:px-r,y:ty-r},{x:px+r,y:ty-r},{x:px-r,y:ty+r},{x:px+r,y:ty+r}];
@@ -505,7 +541,7 @@ const Game = ({ roomData }) => {
         if ((keys[' '] || keys['MouseLeft'] || mobileShootRef.current) && now - shootCooldownRef.current > 500) {
           initAudio();
           socket.emit('player-shoot');
-          setMuzzleFlash(now);
+          muzzleFlashRef.current = now;
           shootCooldownRef.current = now;
         }
       }
@@ -513,7 +549,7 @@ const Game = ({ roomData }) => {
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext('2d');
-        const { width, height } = dimensions;
+        const { width, height } = dimsRef.current;
         const dpr = window.devicePixelRatio || 1;
         
         if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
@@ -523,15 +559,14 @@ const Game = ({ roomData }) => {
           canvas.style.height = `${height}px`;
         }
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
         ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, width, height);
 
         const curX = posRef.current.x, curY = posRef.current.y;
         let targetX = curX, targetY = curY;
 
-        if (activeSpectating && gameState) {
+        if (activeSpectating && state) {
           const targetId = spectateTarget?.id || spectateTargetId;
-          const targetPlayer = gameState.players.find((p) => p.id === targetId && p.hp > 0);
+          const targetPlayer = state.players.find((p) => p.id === targetId && p.hp > 0);
           if (targetPlayer) { 
             const sp = smoothedPlayersRef.current[targetPlayer.id];
             targetX = sp ? sp.x : targetPlayer.x; 
@@ -539,7 +574,7 @@ const Game = ({ roomData }) => {
           }
           else {
             let closest = null, minDist = Infinity;
-            gameState.players.forEach(p => {
+            state.players.forEach(p => {
               if (p.hp > 0 && p.id !== socket.id) {
                 const d = Math.sqrt((posRef.current.x - p.x)**2 + (posRef.current.y - p.y)**2);
                 if (d < minDist) { minDist = d; closest = p; }
@@ -554,14 +589,13 @@ const Game = ({ roomData }) => {
           }
         }
 
-        // Camera Smoothing
         smoothedCameraRef.current.x += (targetX - smoothedCameraRef.current.x) * 0.12 * dt;
         smoothedCameraRef.current.y += (targetY - smoothedCameraRef.current.y) * 0.12 * dt;
 
         const camX = width / 2 - smoothedCameraRef.current.x, camY = height / 2 - smoothedCameraRef.current.y;
         ctx.save();
-        if (Date.now() - screenShake < 200) {
-          const intensity = 8 * (1 - (Date.now() - screenShake) / 200);
+        if (Date.now() - screenShakeRef.current < 200) {
+          const intensity = 8 * (1 - (Date.now() - screenShakeRef.current) / 200);
           ctx.translate(Math.random() * intensity - intensity/2, Math.random() * intensity - intensity/2);
         }
         ctx.translate(camX, camY);
@@ -573,35 +607,28 @@ const Game = ({ roomData }) => {
           ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
         });
 
-        if (gameState && !gameState.key.carrierId) {
+        if (state && !state.key.carrierId) {
           ctx.save(); ctx.strokeStyle = 'rgba(244, 63, 94, 0.4)'; ctx.lineWidth = 15; ctx.beginPath();
-          ctx.arc(MAZE_WIDTH / 2, MAZE_HEIGHT / 2, gameState.zoneRadius, 0, Math.PI * 2); ctx.stroke();
+          ctx.arc(MAZE_WIDTH / 2, MAZE_HEIGHT / 2, state.zoneRadius, 0, Math.PI * 2); ctx.stroke();
           ctx.strokeStyle = 'rgba(244, 63, 94, 0.8)'; ctx.lineWidth = 5; ctx.stroke();
           ctx.shadowBlur = 30; ctx.shadowColor = '#f43f5e'; ctx.stroke(); ctx.restore();
         }
 
+        // Draw Static Maze from Offscreen Canvas
+        if (offscreenMazeCanvasRef.current) {
+          ctx.drawImage(offscreenMazeCanvasRef.current, 0, 0);
+        }
 
-        const activeMaze = gameState?.maze || roomData?.maze || MAZE_MAP;
+        // Draw Dynamic Maze Elements (Exit Gate)
+        const activeMaze = loopMaze;
         activeMaze.forEach((row, y) => {
           row.forEach((tile, x) => {
-            const tx=x*TILE_SIZE, ty=y*TILE_SIZE;
-            if (tile === 1) {
-              ctx.fillStyle = '#1e293b'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
-              ctx.shadowBlur = 8; ctx.shadowColor = '#6366f1'; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
-              ctx.shadowBlur = 0;
-            } else if (tile === 3) {
-              // Weak Wall
-              ctx.fillStyle = '#451a03'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-              ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.strokeRect(tx+4, ty+4, TILE_SIZE-8, TILE_SIZE-8);
-              // Cracked texture look
-              ctx.beginPath(); ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)'; ctx.moveTo(tx+10, ty+10); ctx.lineTo(tx+TILE_SIZE-10, ty+TILE_SIZE-10); ctx.stroke();
-            } else if (tile === 2) {
-              const isLocked = !gameState?.key?.carrierId || (gameState?.pickupLockoutRemaining > 0);
+            if (tile === 2) {
+              const tx=x*TILE_SIZE, ty=y*TILE_SIZE;
+              const isLocked = !state?.key?.carrierId || (state?.pickupLockoutRemaining > 0);
               if (isLocked) {
                 ctx.fillStyle = 'rgba(244, 63, 94, 0.15)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
                 ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 4; ctx.strokeRect(tx+2, ty+2, TILE_SIZE-4, TILE_SIZE-4);
-                // Gate Bars
                 ctx.strokeStyle = 'rgba(244, 63, 94, 0.6)'; ctx.lineWidth = 3;
                 for(let i=1; i<4; i++) {
                   ctx.beginPath(); ctx.moveTo(tx + i*(TILE_SIZE/4), ty+4); ctx.lineTo(tx + i*(TILE_SIZE/4), ty+TILE_SIZE-4); ctx.stroke();
@@ -619,19 +646,19 @@ const Game = ({ roomData }) => {
           });
         });
 
-        if (gameState) {
+        if (state) {
           localBulletsRef.current.forEach(b => {
             ctx.fillStyle = '#fde047'; ctx.shadowBlur = 10; ctx.shadowColor = '#fde047';
             ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
           });
 
-          const k = gameState.key;
+          const k = state.key;
           if (k && !k.carrierId) {
             const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
             drawKey(ctx, k.x, k.y, pulse);
           }
 
-          gameState.players.forEach(p => {
+          state.players.forEach(p => {
             if (p.hp <= 0) return;
             ctx.save();
             const isMe = p.id === socket.id, sp = smoothedPlayersRef.current[p.id];
@@ -639,7 +666,7 @@ const Game = ({ roomData }) => {
             const pAngle = isMe ? aimAngleRef.current : (p.aimAngle || 0);
             ctx.translate(px, py);
 
-            if (isMe && Date.now() - muzzleFlash < 100) {
+            if (isMe && Date.now() - muzzleFlashRef.current < 100) {
               ctx.fillStyle = 'rgba(253, 224, 71, 0.3)'; ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill();
             }
 
@@ -667,11 +694,10 @@ const Game = ({ roomData }) => {
 
         // Minimap Drawing
         const mCanvas = minimapCanvasRef.current;
-        if (mCanvas && gameState) {
+        if (mCanvas && state) {
           const mCtx = mCanvas.getContext('2d');
           const dpr = window.devicePixelRatio || 1;
           const mSize = 160;
-          
           if (mCanvas.width !== Math.floor(mSize * dpr) || mCanvas.height !== Math.floor(mSize * dpr)) {
             mCanvas.width = Math.floor(mSize * dpr);
             mCanvas.height = Math.floor(mSize * dpr);
@@ -679,45 +705,42 @@ const Game = ({ roomData }) => {
             mCanvas.style.height = `${mSize}px`;
           }
           mCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
           const mScale = mSize / MAZE_WIDTH;
           mCtx.clearRect(0,0,mSize,mSize);
           
-          const currentMaze = gameState.maze || MAZE_MAP;
+          const currentMaze = mazeRef.current || MAZE_MAP;
           currentMaze.forEach((row, y) => {
             row.forEach((tile, x) => {
               if (tile === 1) {
                 mCtx.fillStyle = 'rgba(255,255,255,0.15)';
                 mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
               } else if (tile === 3) {
-                mCtx.fillStyle = 'rgba(245, 158, 11, 0.4)'; // Weak wall color on minimap
+                mCtx.fillStyle = 'rgba(245, 158, 11, 0.4)';
                 mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
               } else if (tile === 2) {
-                mCtx.fillStyle = 'rgba(16, 185, 129, 0.3)'; // Exit color on minimap
+                mCtx.fillStyle = 'rgba(16, 185, 129, 0.3)';
                 mCtx.fillRect(x * TILE_SIZE * mScale, y * TILE_SIZE * mScale, TILE_SIZE * mScale, TILE_SIZE * mScale);
               }
             });
           });
           
-          if (!gameState.key.carrierId && gameState.zoneRadius < MAZE_WIDTH) {
+          if (!state.key.carrierId && state.zoneRadius < MAZE_WIDTH) {
             mCtx.strokeStyle = '#f43f5e';
             mCtx.lineWidth = 2;
-            mCtx.setLineDash([4, 2]); // Dashed zone on minimap for clarity
+            mCtx.setLineDash([4, 2]);
             mCtx.beginPath();
-            mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, gameState.zoneRadius*mScale, 0, Math.PI * 2);
+            mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, state.zoneRadius*mScale, 0, Math.PI * 2);
             mCtx.stroke();
-            mCtx.setLineDash([]); // Reset
-            
-            // Add a subtle fill to the "danger" area (outside zone)
+            mCtx.setLineDash([]);
             mCtx.fillStyle = 'rgba(244, 63, 94, 0.1)';
             mCtx.beginPath();
             mCtx.rect(0, 0, mSize, mSize);
-            mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, gameState.zoneRadius*mScale, 0, Math.PI * 2, true);
+            mCtx.arc((MAZE_WIDTH/2)*mScale, (MAZE_HEIGHT/2)*mScale, state.zoneRadius*mScale, 0, Math.PI * 2, true);
             mCtx.fill();
           }
           const kPulse = (Math.sin(Date.now()/200)+1)/2;
-          mCtx.fillStyle='#eab308'; mCtx.shadowBlur = 10 * kPulse; mCtx.shadowColor = '#eab308'; mCtx.beginPath(); mCtx.arc(gameState.key.x*mScale, gameState.key.y*mScale, 4, 0, Math.PI * 2); mCtx.fill(); mCtx.shadowBlur = 0;
-          gameState.players.forEach(p=>{ if(p.hp>0){ mCtx.fillStyle=p.id===socket.id?'#6366f1':'#f43f5e'; mCtx.beginPath(); mCtx.arc((p.id===socket.id?curX:p.x)*mScale, (p.id===socket.id?curY:p.y)*mScale, 3, 0, Math.PI*2); mCtx.fill(); }});
+          mCtx.fillStyle='#eab308'; mCtx.shadowBlur = 10 * kPulse; mCtx.shadowColor = '#eab308'; mCtx.beginPath(); mCtx.arc(state.key.x*mScale, state.key.y*mScale, 4, 0, Math.PI * 2); mCtx.fill(); mCtx.shadowBlur = 0;
+          state.players.forEach(p=>{ if(p.hp>0){ mCtx.fillStyle=p.id===socket.id?'#6366f1':'#f43f5e'; mCtx.beginPath(); mCtx.arc((p.id===socket.id?curX:p.x)*mScale, (p.id===socket.id?curY:p.y)*mScale, 3, 0, Math.PI*2); mCtx.fill(); }});
         }
       }
 
@@ -726,10 +749,42 @@ const Game = ({ roomData }) => {
 
     loopId = requestAnimationFrame(gameLoop);
 
-    // player-moved listener removed to prevent packet backlog feedback loop
-
     socket.on('game-state', (state) => {
-      // Check for kills
+      // Manage Maze Updates & Offscreen Rendering
+      let mazeChanged = false;
+      if (!mazeRef.current) {
+        mazeRef.current = state.maze || MAZE_MAP;
+        mazeChanged = true;
+      }
+
+      if (state.mazeUpdates && state.mazeUpdates.length > 0) {
+        const newMaze = [...mazeRef.current.map(row => [...row])];
+        state.mazeUpdates.forEach(upd => {
+          if (newMaze[upd.y]) newMaze[upd.y][upd.x] = upd.tile;
+        });
+        mazeRef.current = newMaze;
+        mazeChanged = true;
+      } else if (state.maze) {
+        mazeRef.current = state.maze;
+        mazeChanged = true;
+      }
+
+      if (mazeChanged) renderMazeToOffscreen(mazeRef.current);
+
+      // Update High-Freq Ref
+      gameStateRef.current = {
+        ...state,
+        maze: mazeRef.current
+      };
+
+      // Selectively update UI State (lower frequency or only on change)
+      setUiGameState(prev => {
+        // Only trigger re-render if essential UI data changed
+        // For simplicity, we trigger it, but we can throttle this if needed.
+        return gameStateRef.current;
+      });
+
+      // Kill Feed Logic
       if (prevPlayersRef.current) {
         state.players.forEach(p => {
           const prevP = prevPlayersRef.current[p.id];
@@ -750,27 +805,6 @@ const Game = ({ roomData }) => {
       }
       prevPlayersRef.current = state.players.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
 
-      // Incremental Maze Updates
-      if (state.mazeUpdates && state.mazeUpdates.length > 0) {
-        setGameState(prev => {
-          if (!prev) return state;
-          const newMaze = prev.maze ? [...prev.maze.map(row => [...row])] : null;
-          if (newMaze) {
-            state.mazeUpdates.forEach(upd => {
-              if (newMaze[upd.y]) newMaze[upd.y][upd.x] = upd.tile;
-            });
-            return { ...state, maze: newMaze };
-          }
-          return state;
-        });
-      } else {
-        // Preserve maze if not provided in this update
-        setGameState(prev => ({
-          ...state,
-          maze: state.maze || prev?.maze || null
-        }));
-      }
-      
       // Authoritative server sync for local player
       const serverMe = state.players.find(p => p.id === socket.id);
       if (serverMe) {
@@ -794,7 +828,10 @@ const Game = ({ roomData }) => {
         }
       });
     });
-    socket.on('game-over', setGameOver);
+    socket.on('game-over', (data) => {
+      setGameOver(data);
+      gameOverRef.current = data;
+    });
 
     return () => {
       cancelAnimationFrame(loopId);
@@ -806,20 +843,21 @@ const Game = ({ roomData }) => {
       socket.off('game-state');
       socket.off('game-over');
     };
-  }, [gameState, gameOver, muzzleFlash, roomData, spectateTargetId, isSpectating, dimensions]);
+  }, [roomData, spectateTargetId, isSpectating]);
 
-  const isKeyCarrier = gameState?.key.carrierId === socket.id;
+  const isKeyCarrier = uiGameState?.key.carrierId === socket.id;
   const hasTeamsInSummary = Boolean(gameOver?.stats?.some((s) => s.teamId));
 
   const handleTouchStart = (e) => {
-    if (!isMobile) return;
+    if (!isMobileRef.current) return;
     initAudio();
+    const { width } = dimsRef.current;
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const { clientX, clientY } = touch;
       
       // Left half = movement
-      if (clientX < dimensions.width / 2) {
+      if (clientX < width / 2) {
         if (!moveJoystickRef.current.active) {
           moveJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
           setJoystickUI(prev => ({ ...prev, move: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY } }));
@@ -850,7 +888,7 @@ const Game = ({ roomData }) => {
   };
 
   const handleTouchMove = (e) => {
-    if (!isMobile) return;
+    if (!isMobileRef.current) return;
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const { clientX, clientY, identifier } = touch;
@@ -882,7 +920,7 @@ const Game = ({ roomData }) => {
   };
 
   const handleTouchEnd = (e) => {
-    if (!isMobile) return;
+    if (!isMobileRef.current) return;
     for (let i = 0; i < e.changedTouches.length; i++) {
       const identifier = e.changedTouches[i].identifier;
       if (moveJoystickRef.current.id === identifier) {
@@ -908,7 +946,7 @@ const Game = ({ roomData }) => {
   const handleMobileDash = (e) => {
     e.stopPropagation();
     initAudio();
-    if (Date.now() - dashCooldownRef.current > 3000) {
+    if (Date.now() - dashCooldownRef.current > 4000) {
       dashTimeRef.current = Date.now();
       dashCooldownRef.current = Date.now();
       socket.emit('player-dash');
@@ -1040,21 +1078,21 @@ const Game = ({ roomData }) => {
       )}
 
       {/* Arena Lock / Key Carrier Alerts */}
-      {gameState?.exitLockoutRemaining > 0 ? (
+      {uiGameState?.exitLockoutRemaining > 0 ? (
         <div className="key-carrier-alert arena-lock">
           <Zap size={20} className="lock-icon" style={{ color: 'var(--accent)' }} />
           <span>
-            ARENA LOCK ACTIVE — WALLS BREACHABLE IN: {gameState.exitLockoutRemaining}s
+            ARENA LOCK ACTIVE — WALLS BREACHABLE IN: {uiGameState.exitLockoutRemaining}s
           </span>
         </div>
-      ) : gameState?.key?.carrierId ? (
+      ) : uiGameState?.key?.carrierId ? (
         <div className="key-carrier-alert">
           <Key size={20} className="lock-icon" />
           <span>
-            {gameState.players.find(p => p.id === gameState.key.carrierId)?.name.toUpperCase()} HAS THE KEY
-            {gameState.pickupLockoutRemaining > 0 && (
+            {uiGameState.players.find(p => p.id === uiGameState.key.carrierId)?.name.toUpperCase()} HAS THE KEY
+            {uiGameState.pickupLockoutRemaining > 0 && (
               <span style={{ color: '#f43f5e', marginLeft: '10px', fontWeight: 900 }}>
-                — EXITS LOCKED: {gameState.pickupLockoutRemaining}s
+                — EXITS LOCKED: {uiGameState.pickupLockoutRemaining}s
               </span>
             )}
           </span>
@@ -1068,7 +1106,7 @@ const Game = ({ roomData }) => {
             <h1 className="glitch-text">TERMINATED</h1>
             <p style={{color: 'var(--text-dim)', marginBottom: '2rem'}}>
               Killed by: <span style={{color: 'var(--danger)', fontWeight: 800}}>
-                {localPlayer.killedBy === 'ZONE' ? 'THE DEADLY ZONE' : (gameState?.players.find(p=>p.id===localPlayer.killedBy)?.name.toUpperCase() || 'UNKNOWN AGENT')}
+                {localPlayer.killedBy === 'ZONE' ? 'THE DEADLY ZONE' : (uiGameState?.players.find(p=>p.id===localPlayer.killedBy)?.name.toUpperCase() || 'UNKNOWN AGENT')}
               </span>
             </p>
             <div className="overlay-buttons">

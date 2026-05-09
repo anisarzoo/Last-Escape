@@ -167,7 +167,7 @@ const Game = ({ roomData }) => {
   
   // High-frequency state moved to Refs
   const gameStateRef = useRef(null);
-  const mazeRef = useRef(null);
+  const mazeRef = useRef(MAZE_MAP);
   
   // UI-triggering state
   const [uiGameState, setUiGameState] = useState(null);
@@ -621,8 +621,8 @@ const Game = ({ roomData }) => {
         ctx.globalAlpha = 1.0;
 
         // Lazy-render Offscreen Maze
-        if (!offscreenMazeCanvasRef.current && mazeRef.current) {
-          const m = mazeRef.current;
+        if (!offscreenMazeCanvasRef.current) {
+          const m = mazeRef.current || MAZE_MAP;
           const canvas = document.createElement('canvas');
           canvas.width = MAZE_WIDTH;
           canvas.height = MAZE_HEIGHT;

@@ -194,16 +194,16 @@ body {
   }
   
   .rules-header-row {
-    padding: 1rem 1.5rem;
+    padding: 0.6rem 1.25rem;
   }
   
   .rules-scroll-area {
-    padding: 1rem 1.5rem;
+    padding: 0.8rem 1.25rem;
   }
   
   .rules-grid {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem 1.25rem;
   }
 
   .rules-tooltip-card h4 { font-size: 0.75rem; margin-bottom: 0.75rem; }

@@ -195,6 +195,10 @@ function App() {
               <h5>Ghost Protocol</h5>
               <p>Securing the Master Key activates an <span>unbreakable cloak</span> for <span>5 seconds</span>, rendering you 100% invisible to opponents.</p>
             </div>
+            <div className="rules-section">
+              <h5>Ballistic Ricochet</h5>
+              <p>Projectiles are designed for indoor combat, <span>bouncing off surfaces</span> up to 2 times. Use indirect fire to eliminate targets around corners.</p>
+            </div>
           </div>
         </div>
 
@@ -373,27 +377,17 @@ function App() {
             <div className="htp-column">
               <div className="htp-header">
                 <Trophy className="htp-icon" />
-                <h3>OBJECTIVE</h3>
+                <h3>MISSION BRIEFING</h3>
               </div>
-              <p>Secure the <span>MASTER KEY</span> and reach an <span>EXIT</span> (or cross the perimeter), or eliminate all opponents to be the last survivor.</p>
+              <p>
+                Locate and secure the <span>MASTER KEY</span> from the center of the arena. 
+                Once captured, you must hold the key for <span>60 seconds</span> to override the biometric gate lockdown. 
+                After the countdown, reach any <span>EXIT</span> tile or cross the perimeter to escape. 
+                Alternatively, eliminate all opponents to be the <span>last survivor</span>.
+              </p>
             </div>
             
-            <div className="htp-column">
-              <div className="htp-header">
-                <Settings className="htp-icon" />
-                <h3>MECHANICS</h3>
-              </div>
-              <ul>
-                <li><span>LOCKDOWN</span>: Hold the Master Key for 60s to unlock the exits.</li>
-                <li><span>DRAIN</span>: The key carrier siphons health from opponents (intensity doubles after 60s).</li>
-                <li><span>SHIELD</span>: Holding the Master Key reduces incoming bullet damage by 10%.</li>
-                <li><span>GHOST</span>: Activate 5s of unbreakable invisibility upon securing the Key.</li>
-                <li><span>REWARD</span>: Eliminating opponents restores 15% HP and boosts weapon range.</li>
-                <li><span>ZONE</span>: The safe zone shrinks continuously until the key is secured.</li>
-                <li><span>ARENA</span>: Walls are invulnerable for the first 30s of the mission.</li>
-                <li><span>SUPPLY</span>: Look for Health Kits and Ammo Packs spawning in the maze.</li>
-              </ul>
-            </div>
+
             
             <div className="htp-column">
               <div className="htp-header">

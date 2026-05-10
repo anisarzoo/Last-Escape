@@ -318,16 +318,31 @@ const Game = ({ roomData }) => {
     const aliveOthers = uiGameState.players.filter((p) => p.id !== socket.id && p.hp > 0);
     if (aliveOthers.length === 0) return [];
 
-    if (isTeamMode && localPlayer.teamId) {
-      const aliveTeammates = aliveOthers.filter((p) => p.teamId === localPlayer.teamId);
-      if (aliveTeammates.length > 0) return aliveTeammates;
-      return aliveOthers.filter((p) => p.teamId !== localPlayer.teamId);
+    if (isTeamMode) {
+      const myTeamId = localPlayer.teamId || roomData?.players.find(p => p.id === socket.id)?.teamId;
+      if (myTeamId) {
+        const aliveTeammates = aliveOthers.filter((p) => p.teamId === myTeamId);
+        if (aliveTeammates.length > 0) return aliveTeammates;
+      }
+      // If no teammates alive, fallback to opponents
+      return aliveOthers;
     }
 
+    // FFA Mode: Prioritize whoever killed you
     const killer = aliveOthers.find((p) => p.id === localPlayer.killedBy);
     if (!killer) return aliveOthers;
     return [killer, ...aliveOthers.filter((p) => p.id !== killer.id)];
-  }, [uiGameState, isTeamMode, localPlayer]);
+  }, [uiGameState, isTeamMode, localPlayer, roomData]);
+
+  // Auto-switch to teammate upon death in Team Mode
+  useEffect(() => {
+    if (isEliminated && isTeamMode && !gameOver && !spectateTargetId) {
+      if (spectateCandidates.length > 0) {
+        setSpectateTargetId(spectateCandidates[0].id);
+        setIsSpectating(true);
+      }
+    }
+  }, [isEliminated, isTeamMode, gameOver, spectateCandidates, spectateTargetId]);
 
   const spectateTarget = useMemo(() => {
     if (spectateCandidates.length === 0) return null;

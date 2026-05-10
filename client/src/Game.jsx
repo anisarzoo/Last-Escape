@@ -450,6 +450,9 @@ const Game = ({ roomData }) => {
       });
 
       const loopMaze = mazeRef.current || MAZE_MAP;
+      const currentMazeWidth = loopMaze[0].length * TILE_SIZE;
+      const currentMazeHeight = loopMaze.length * TILE_SIZE;
+
       localBulletsRef.current.forEach(b => {
         const nextX = b.x + b.vx * dt;
         const nextY = b.y + b.vy * dt;
@@ -562,7 +565,7 @@ const Game = ({ roomData }) => {
         let tx = px + dx;
         if (Math.abs(inputY) > 0.1 && Math.abs(inputX) < 0.5) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.25 * dt;
         let canX = true;
-        if (isExitLocked && (tx < r || tx > MAZE_WIDTH - r)) canX = false;
+        if (tx < 0 || tx > currentMazeWidth) canX = false;
 
         if (canX) {
           const currentMaze = loopMaze;
@@ -579,7 +582,7 @@ const Game = ({ roomData }) => {
         let ty = py + dy;
         if (Math.abs(inputX) > 0.1 && Math.abs(inputY) < 0.5) ty += ((Math.floor(py / TILE_SIZE) + 0.5) * TILE_SIZE - py) * 0.25 * dt;
         let canY = true;
-        if (isExitLocked && (ty < r || ty > MAZE_HEIGHT - r)) canY = false;
+        if (ty < 0 || ty > currentMazeHeight) canY = false;
 
         if (canY) {
           const currentMaze = loopMaze;
@@ -649,7 +652,7 @@ const Game = ({ roomData }) => {
               targetX = sp ? sp.x : closest.x;
               targetY = sp ? sp.y : closest.y;
             }
-            else { targetX = MAZE_WIDTH / 2; targetY = MAZE_HEIGHT / 2; }
+            else { targetX = currentMazeWidth / 2; targetY = currentMazeHeight / 2; }
           }
         }
 
@@ -668,17 +671,17 @@ const Game = ({ roomData }) => {
         if (!offscreenMazeCanvasRef.current && mazeRef.current) {
           const m = mazeRef.current;
           const canvas = document.createElement('canvas');
-          canvas.width = MAZE_WIDTH;
-          canvas.height = MAZE_HEIGHT;
+          canvas.width = currentMazeWidth;
+          canvas.height = currentMazeHeight;
           const mCtx = canvas.getContext('2d');
           m.forEach((row, y) => {
             row.forEach((tile, x) => {
               const tx = x * TILE_SIZE, ty = y * TILE_SIZE;
               if (tile === 1) {
                 const grad = mCtx.createLinearGradient(tx, ty, tx + TILE_SIZE, ty + TILE_SIZE);
-                grad.addColorStop(0, '#1e293b'); grad.addColorStop(1, '#0f172a');
+                grad.addColorStop(0, '#334155'); grad.addColorStop(1, '#1e293b');
                 mCtx.fillStyle = grad; mCtx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
-                mCtx.strokeStyle = '#334155'; mCtx.lineWidth = 1; mCtx.strokeRect(tx + 0.5, ty + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+                mCtx.strokeStyle = '#475569'; mCtx.lineWidth = 1; mCtx.strokeRect(tx + 0.5, ty + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
               } else if (tile === 3) {
                 mCtx.fillStyle = '#451a03'; mCtx.fillRect(tx + 2, ty + 2, TILE_SIZE - 4, TILE_SIZE - 4);
                 mCtx.strokeStyle = '#f59e0b'; mCtx.lineWidth = 2; mCtx.strokeRect(tx + 4, ty + 4, TILE_SIZE - 8, TILE_SIZE - 8);
@@ -694,6 +697,10 @@ const Game = ({ roomData }) => {
                   if (hp <= 25) { mCtx.moveTo(tx + 10, ty + 35); mCtx.lineTo(tx + 25, ty + 30); mCtx.lineTo(tx + 30, ty + 40); }
                   mCtx.stroke();
                 }
+              } else if (tile === 2) {
+                // Pre-render basic exit shape
+                mCtx.fillStyle = 'rgba(244, 63, 94, 0.1)';
+                mCtx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
               }
             });
           });
@@ -709,8 +716,8 @@ const Game = ({ roomData }) => {
           const viewW = width, viewH = height;
           const sx = Math.max(0, camX_val - viewW / 2);
           const sy = Math.max(0, camY_val - viewH / 2);
-          const sWidth = Math.min(MAZE_WIDTH - sx, viewW);
-          const sHeight = Math.min(MAZE_HEIGHT - sy, viewH);
+          const sWidth = Math.min(currentMazeWidth - sx, viewW);
+          const sHeight = Math.min(currentMazeHeight - sy, viewH);
 
           const dx = sx, dy = sy;
           ctx.drawImage(offscreenMazeCanvasRef.current, sx, sy, sWidth, sHeight, dx, dy, sWidth, sHeight);
@@ -720,7 +727,7 @@ const Game = ({ roomData }) => {
         if (state && !state.key.carrierId && state.zoneRadius < 2000) {
           ctx.save();
           ctx.strokeStyle = 'rgba(244, 63, 94, 0.3)'; ctx.lineWidth = 15; ctx.beginPath();
-          ctx.arc(MAZE_WIDTH / 2, MAZE_HEIGHT / 2, state.zoneRadius, 0, Math.PI * 2); ctx.stroke();
+          ctx.arc(currentMazeWidth / 2, currentMazeHeight / 2, state.zoneRadius, 0, Math.PI * 2); ctx.stroke();
           ctx.strokeStyle = 'rgba(244, 63, 94, 0.7)'; ctx.lineWidth = 4; ctx.stroke();
           ctx.restore();
         }
@@ -747,12 +754,33 @@ const Game = ({ roomData }) => {
         });
         ctx.globalAlpha = 1.0;
 
-        // Draw Dynamic Maze Elements (Exit Gate)
+        // Draw Dynamic Maze Elements (Exit Gate & Arena Lock)
         const activeMaze = loopMaze;
+        const isArenaLocked = uiGameState?.exitLockoutRemaining > 0;
+        
         activeMaze.forEach((row, y) => {
           row.forEach((tile, x) => {
-            if (tile === 2) {
-              const tx = x * TILE_SIZE, ty = y * TILE_SIZE;
+            const tx = x * TILE_SIZE, ty = y * TILE_SIZE;
+            
+            // Only render if visible (viewport clipping)
+            const camX_val = smoothedCameraRef.current.x;
+            const camY_val = smoothedCameraRef.current.y;
+            if (tx < camX_val - width/2 - TILE_SIZE || tx > camX_val + width/2 || 
+                ty < camY_val - height/2 - TILE_SIZE || ty > camY_val + height/2) return;
+
+            if (tile === 3 && isArenaLocked) {
+              // Draw "Locked" pulse on weak walls
+              const pulse = (Math.sin(Date.now() / 300) + 1) / 2;
+              ctx.strokeStyle = `rgba(147, 197, 253, ${0.3 + pulse * 0.4})`;
+              ctx.lineWidth = 3;
+              ctx.strokeRect(tx + 4, ty + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+              ctx.fillStyle = `rgba(147, 197, 253, ${0.1 + pulse * 0.1})`;
+              ctx.fillRect(tx + 4, ty + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+              
+              ctx.fillStyle = '#93c5fd'; ctx.font = '900 10px Outfit'; ctx.textAlign = 'center';
+              ctx.fillText('LOCKED', tx + TILE_SIZE / 2, ty + TILE_SIZE / 2 + 4);
+            }
+            else if (tile === 2) {
               const isLocked = !state?.key?.carrierId || (state?.pickupLockoutRemaining > 0);
               if (isLocked) {
                 ctx.fillStyle = 'rgba(244, 63, 94, 0.15)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
@@ -929,7 +957,7 @@ const Game = ({ roomData }) => {
           const mCtx = mCanvas.getContext('2d');
           const dpr = window.devicePixelRatio || 1;
           const mSize = 160;
-          const mScale = mSize / MAZE_WIDTH;
+          const mScale = mSize / currentMazeWidth;
 
           if (mCanvas.width !== Math.floor(mSize * dpr) || mCanvas.height !== Math.floor(mSize * dpr)) {
             mCanvas.width = Math.floor(mSize * dpr);
@@ -969,11 +997,11 @@ const Game = ({ roomData }) => {
             mCtx.drawImage(offscreenMinimapCanvasRef.current, 0, 0, mSize, mSize);
           }
 
-          if (!state.key.carrierId && state.zoneRadius < MAZE_WIDTH) {
+          if (!state.key.carrierId && state.zoneRadius < currentMazeWidth) {
             mCtx.strokeStyle = '#f43f5e';
             mCtx.lineWidth = 2;
             mCtx.beginPath();
-            mCtx.arc((MAZE_WIDTH / 2) * mScale, (MAZE_HEIGHT / 2) * mScale, state.zoneRadius * mScale, 0, Math.PI * 2);
+            mCtx.arc((currentMazeWidth / 2) * mScale, (currentMazeHeight / 2) * mScale, state.zoneRadius * mScale, 0, Math.PI * 2);
             mCtx.stroke();
             mCtx.fillStyle = 'rgba(244, 63, 94, 0.05)';
             mCtx.fillRect(0, 0, mSize, mSize);
@@ -1110,6 +1138,11 @@ const Game = ({ roomData }) => {
     socket.on('game-over', (data) => {
       setGameOver(data);
       gameOverRef.current = data;
+    });
+    
+    socket.on('position-correction', (data) => {
+      posRef.current = { x: data.x, y: data.y };
+      velRef.current = { x: 0, y: 0 }; // Stop velocity to prevent sliding back into the wall
     });
 
     return () => {

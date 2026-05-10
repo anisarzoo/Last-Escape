@@ -37,14 +37,14 @@ const MODE_CONFIG = {
 const TEAM_IDS = ['A', 'B'];
 
 const spawnPoints = [
-  { x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 }, // Top-Left
-  { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Right
-  { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 }, // Top-Right
-  { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Left
-  { x: MAZE_WIDTH / 2, y: TILE_SIZE * 0.5 }, // Top-Mid
-  { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT - TILE_SIZE * 0.5 }, // Bottom-Mid
-  { x: TILE_SIZE * 0.5, y: MAZE_HEIGHT / 2 }, // Left-Mid
-  { x: MAZE_WIDTH - TILE_SIZE * 0.5, y: MAZE_HEIGHT / 2 } // Right-Mid
+  { x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5 }, // Top-Left
+  { x: MAZE_WIDTH - TILE_SIZE * 1.5, y: MAZE_HEIGHT - TILE_SIZE * 1.5 }, // Bottom-Right
+  { x: MAZE_WIDTH - TILE_SIZE * 1.5, y: TILE_SIZE * 1.5 }, // Top-Right
+  { x: TILE_SIZE * 1.5, y: MAZE_HEIGHT - TILE_SIZE * 1.5 }, // Bottom-Left
+  { x: MAZE_WIDTH / 2, y: TILE_SIZE * 1.5 }, // Top-Mid
+  { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT - TILE_SIZE * 1.5 }, // Bottom-Mid
+  { x: TILE_SIZE * 1.5, y: MAZE_HEIGHT / 2 }, // Left-Mid
+  { x: MAZE_WIDTH - TILE_SIZE * 1.5, y: MAZE_HEIGHT / 2 } // Right-Mid
 ];
 
 const teamSpawnOrder = {
@@ -319,6 +319,9 @@ io.on('connection', (socket) => {
       if (canMove) {
         player.x = movement.x;
         player.y = movement.y;
+      } else {
+        // Send correction if movement was blocked
+        socket.emit('position-correction', { x: player.x, y: player.y });
       }
       
       // Dash Collision Check

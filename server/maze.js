@@ -43,38 +43,7 @@ const BASE_MAZE_MAP = [
   [2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2]
 ];
 
-function applySideExitCover(baseMap) {
-  const map = baseMap.map((row) => [...row]);
-  const exits = [
-    { x: 20, y: 0, dx: 0, dy: 1 },   // Top mid
-    { x: 20, y: 40, dx: 0, dy: -1 }, // Bottom mid
-    { x: 0, y: 20, dx: 1, dy: 0 },   // Left mid
-    { x: 40, y: 20, dx: -1, dy: 0 }  // Right mid
-  ];
-
-  const coverOffsets = [
-    { forward: 2, side: -2 },
-    { forward: 2, side: 2 },
-    { forward: 3, side: -1 },
-    { forward: 3, side: 1 }
-  ];
-
-  for (const exit of exits) {
-    for (const offset of coverOffsets) {
-      const x = exit.x + exit.dx * offset.forward - exit.dy * offset.side;
-      const y = exit.y + exit.dy * offset.forward + exit.dx * offset.side;
-
-      if (!map[y] || map[y][x] === undefined) continue;
-      if (map[y][x] === 2) continue;
-      map[y][x] = 1;
-    }
-  }
-
-  return map;
-}
-
-export const MAZE_MAP = applySideExitCover(BASE_MAZE_MAP);
-
+export const MAZE_MAP = BASE_MAZE_MAP;
 export const TILE_SIZE = 60;
 export const MAZE_WIDTH = MAZE_MAP[0].length * TILE_SIZE;
 export const MAZE_HEIGHT = MAZE_MAP.length * TILE_SIZE;

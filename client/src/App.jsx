@@ -159,7 +159,7 @@ function App() {
         {/* Rules Modal - Moved out of button for correct stacking context */}
         <div className={`rules-tooltip-card ${showRules ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
           <div className="rules-header-row">
-            <h4>ADVANCED PROTOCOLS</h4>
+            <h4>TACTICAL PROTOCOLS</h4>
             <button className="rules-close-btn" onClick={() => setShowRules(false)}>&times;</button>
           </div>
           <div className="rules-scroll-area">

@@ -173,11 +173,11 @@ function App() {
             </div>
             <div className="rules-section">
               <h5>Biometric Shield</h5>
-              <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>25%</span>.</p>
+              <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>10%</span>.</p>
             </div>
             <div className="rules-section">
               <h5>Combat Siphon</h5>
-              <p>Every elimination restores <span>25% HP</span> and permanently boosts your <span>Weapon Range</span>.</p>
+              <p>Every elimination restores <span>15% HP</span> and permanently boosts your <span>Weapon Range</span>.</p>
             </div>
             <div className="rules-section">
               <h5>Atmospheric Collapse</h5>
@@ -190,6 +190,10 @@ function App() {
             <div className="rules-section">
               <h5>Supply Drops</h5>
               <p><span>Strategic resources</span> spawn periodically. Secure <span>Medkits</span> for HP or <span>Munition Packs</span> to replenish reserve ammo.</p>
+            </div>
+            <div className="rules-section">
+              <h5>Ghost Protocol</h5>
+              <p>Securing the Master Key activates an <span>unbreakable cloak</span> for <span>5 seconds</span>, rendering you 100% invisible to opponents.</p>
             </div>
           </div>
         </div>
@@ -382,8 +386,9 @@ function App() {
               <ul>
                 <li><span>LOCKDOWN</span>: Hold the Master Key for 60s to unlock the exits.</li>
                 <li><span>DRAIN</span>: The key carrier siphons health from opponents (intensity doubles after 60s).</li>
-                <li><span>SHIELD</span>: Holding the Master Key reduces incoming bullet damage by 25%.</li>
-                <li><span>REWARD</span>: Eliminating opponents restores 25% HP and boosts weapon range.</li>
+                <li><span>SHIELD</span>: Holding the Master Key reduces incoming bullet damage by 10%.</li>
+                <li><span>GHOST</span>: Activate 5s of unbreakable invisibility upon securing the Key.</li>
+                <li><span>REWARD</span>: Eliminating opponents restores 15% HP and boosts weapon range.</li>
                 <li><span>ZONE</span>: The safe zone shrinks continuously until the key is secured.</li>
                 <li><span>ARENA</span>: Walls are invulnerable for the first 30s of the mission.</li>
                 <li><span>SUPPLY</span>: Look for Health Kits and Ammo Packs spawning in the maze.</li>

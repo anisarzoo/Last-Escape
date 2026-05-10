@@ -135,18 +135,21 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2.5rem;
+  height: 64px;
+  padding: 0 2.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(15, 23, 42, 0.6);
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .rules-tooltip-card h4 {
   margin: 0;
-  color: #818cf8; /* Bright indigo for the title */
+  color: #818cf8;
   font-family: 'Syncopate', sans-serif;
   font-size: 1.1rem;
   letter-spacing: 2px;
+  transform: translateY(1px); /* Visual baseline correction */
 }
 
 .rules-close-btn {
@@ -194,7 +197,8 @@ body {
   }
   
   .rules-header-row {
-    padding: 0.6rem 1.25rem;
+    height: 48px;
+    padding: 0 1.25rem;
   }
   
   .rules-scroll-area {

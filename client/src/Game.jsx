@@ -232,6 +232,39 @@ const Game = ({ roomData }) => {
     }, 2000);
     return () => clearInterval(interval);
   }, [socket]);
+
+  // --- SCREEN WAKE LOCK ---
+  useEffect(() => {
+    let wakeLock = null;
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Operational Status: Screen Wake Lock Active');
+        }
+      } catch (err) {
+        // Silently fail if wake lock is denied or unsupported
+      }
+    };
+
+    const handleVisibilityChange = async () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
+      }
+    };
+
+    requestWakeLock();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLock) {
+        wakeLock.release().then(() => {
+          wakeLock = null;
+        });
+      }
+    };
+  }, []);
   const [isSpectating, setIsSpectating] = useState(false);
   const [spectateTargetId, setSpectateTargetId] = useState(null);
   const [dashCDRemaining, setDashCDRemaining] = useState(0);
@@ -872,6 +905,8 @@ const Game = ({ roomData }) => {
             if (p.hp <= 0) return;
             ctx.save();
             const isMe = p.id === socket.id, sp = smoothedPlayersRef.current[p.id];
+            const meData = state.players.find(lp => lp.id === socket.id);
+            const isTeammate = state.isTeamMode && p.teamId && meData && p.teamId === meData.teamId && !isMe;
             const px = isMe ? curX : (sp ? sp.x : p.x), py = isMe ? curY : (sp ? sp.y : p.y);
             const pAngle = isMe ? aimAngleRef.current : (p.aimAngle || 0);
             
@@ -890,7 +925,7 @@ const Game = ({ roomData }) => {
 
             ctx.save(); ctx.rotate(pAngle); ctx.fillStyle = '#94a3b8'; ctx.fillRect(12, -4, 22, 8); ctx.restore();
 
-            const color = isMe ? '#6366f1' : '#f43f5e';
+            const color = isMe ? '#6366f1' : (isTeammate ? '#10b981' : '#f43f5e');
             const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 16);
             grad.addColorStop(0, color); grad.addColorStop(1, '#000');
             ctx.fillStyle = grad;
@@ -943,9 +978,23 @@ const Game = ({ roomData }) => {
             if (!isMe && !p.isStealth) {
               const barW = 44, barH = 6;
               ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-barW / 2, -38, barW, barH);
-              ctx.fillStyle = p.hp > 30 ? '#10b981' : '#f43f5e'; ctx.fillRect(-barW / 2, -38, (p.hp / 100) * barW, barH);
-              ctx.fillStyle = '#fff'; ctx.font = '900 12px Outfit'; ctx.textAlign = 'center';
+              ctx.fillStyle = p.hp > 30 ? (isTeammate ? '#10b981' : '#10b981') : '#f43f5e'; 
+              ctx.fillRect(-barW / 2, -38, (p.hp / 100) * barW, barH);
+              
+              ctx.fillStyle = isTeammate ? '#10b981' : '#fff';
+              ctx.font = '900 12px Outfit'; ctx.textAlign = 'center';
               ctx.fillText(p.name.toUpperCase(), 0, -45);
+              
+              if (isTeammate) {
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(-4, -58);
+                ctx.lineTo(0, -54);
+                ctx.lineTo(4, -58);
+                ctx.stroke();
+              }
             }
             ctx.restore();
             ctx.globalAlpha = 1.0; // Reset for next player

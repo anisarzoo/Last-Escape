@@ -409,7 +409,18 @@ function App() {
                   {roomData?.isTeamMode ? (
                     <>
                       <div className="team-group">
-                        <h4 className="team-title title-a">TEAM ALPHA</h4>
+                        <div className="team-header-row">
+                          <h4 className="team-title title-a">TEAM ALPHA</h4>
+                          {roomData.players.find(p => p.id === socket.id)?.teamId !== 'A' && (
+                            <button 
+                              className="team-join-btn btn-a"
+                              onClick={() => socket.emit('switch-team', { teamId: 'A' })}
+                              disabled={roomData.players.filter(p => p.teamId === 'A').length >= roomData.teamSize}
+                            >
+                              JOIN
+                            </button>
+                          )}
+                        </div>
                         {roomData.players.filter(p => p.teamId === 'A').map(p => (
                           <div key={p.id} className="player-row-expanded">
                             <span className="player-dot" style={{ background: p.color }}></span>
@@ -425,7 +436,18 @@ function App() {
                         ))}
                       </div>
                       <div className="team-group">
-                        <h4 className="team-title title-b">TEAM BRAVO</h4>
+                        <div className="team-header-row">
+                          <h4 className="team-title title-b">TEAM BRAVO</h4>
+                          {roomData.players.find(p => p.id === socket.id)?.teamId !== 'B' && (
+                            <button 
+                              className="team-join-btn btn-b"
+                              onClick={() => socket.emit('switch-team', { teamId: 'B' })}
+                              disabled={roomData.players.filter(p => p.teamId === 'B').length >= roomData.teamSize}
+                            >
+                              JOIN
+                            </button>
+                          )}
+                        </div>
                         {roomData.players.filter(p => p.teamId === 'B').map(p => (
                           <div key={p.id} className="player-row-expanded">
                             <span className="player-dot" style={{ background: p.color }}></span>

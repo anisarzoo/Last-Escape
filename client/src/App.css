@@ -742,6 +742,41 @@ button:disabled {
 .title-a { color: #818cf8; }
 .title-b { color: #f43f5e; }
 
+.team-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.team-join-btn {
+  padding: 0.25rem 0.75rem !important;
+  font-size: 0.7rem !important;
+  border-radius: 0.5rem !important;
+  letter-spacing: 0.05rem !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--glass-border) !important;
+  opacity: 0.8;
+}
+
+.team-join-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: var(--glass-border-bright) !important;
+}
+
+.team-join-btn.btn-a:hover:not(:disabled) {
+  background: rgba(129, 140, 248, 0.2) !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+  color: #818cf8;
+}
+
+.team-join-btn.btn-b:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.2) !important;
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  color: #f43f5e;
+}
+
 .player-row-expanded {
   display: flex;
   align-items: center;

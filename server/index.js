@@ -95,14 +95,30 @@ function assignTeamId(room) {
 }
 
 function getSpawnPoint(room, teamId) {
+  const roomPlayers = getRoomPlayers(room);
+  const occupiedIndices = roomPlayers.map((p) => {
+    return spawnPoints.findIndex(sp => 
+      Math.abs(sp.x - p.x) < 5 && Math.abs(sp.y - p.y) < 5
+    );
+  }).filter(idx => idx !== -1);
+
   if (!isTeamModeRoom(room) || !teamId) {
+    // FFA: Find first unoccupied index
+    for (let i = 0; i < spawnPoints.length; i++) {
+      if (!occupiedIndices.includes(i)) return spawnPoints[i];
+    }
+    // Final fallback
     return spawnPoints[room.players.length % spawnPoints.length];
   }
 
-  const existingTeamCount = countTeamPlayers(room, teamId);
   const order = teamSpawnOrder[teamId] || teamSpawnOrder.A;
-  const index = order[existingTeamCount % order.length];
-  return spawnPoints[index];
+  // Team Mode: Find first unoccupied index in the team's designated order
+  for (const idx of order) {
+    if (!occupiedIndices.includes(idx)) return spawnPoints[idx];
+  }
+  
+  // Fallback to first in order
+  return spawnPoints[order[0]];
 }
 
 function isTeammates(room, aId, bId) {
@@ -249,6 +265,25 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('room-update', buildRoomPayload(room));
     socket.emit('initial-maze', room.maze);
     console.log(`${playerName} joined room ${roomId}`);
+  });
+
+  socket.on('switch-team', ({ teamId }) => {
+    const player = players[socket.id];
+    const room = rooms[player?.roomId];
+    if (player && room && !room.gameStarted && room.isTeamMode) {
+      if (TEAM_IDS.includes(teamId)) {
+        const teamCount = countTeamPlayers(room, teamId);
+        if (teamCount < room.teamSize) {
+          player.teamId = teamId;
+          const startPos = getSpawnPoint(room, teamId);
+          player.x = startPos.x;
+          player.y = startPos.y;
+          io.to(player.roomId).emit('room-update', buildRoomPayload(room));
+        } else {
+          socket.emit('error', { message: `Team ${teamId === 'A' ? 'Alpha' : 'Bravo'} is full.` });
+        }
+      }
+    }
   });
 
   socket.on('start-game', () => {

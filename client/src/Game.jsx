@@ -844,6 +844,14 @@ const Game = ({ roomData }) => {
             const isMe = p.id === socket.id, sp = smoothedPlayersRef.current[p.id];
             const px = isMe ? curX : (sp ? sp.x : p.x), py = isMe ? curY : (sp ? sp.y : p.y);
             const pAngle = isMe ? aimAngleRef.current : (p.aimAngle || 0);
+            
+            // Stealth Handling: 100% invisible for others, 40% for self
+            if (p.isStealth) {
+              ctx.globalAlpha = isMe ? 0.4 : 0;
+            } else {
+              ctx.globalAlpha = 1.0;
+            }
+
             ctx.translate(px, py);
 
             if (isMe && Date.now() - muzzleFlashRef.current < 100) {
@@ -902,7 +910,7 @@ const Game = ({ roomData }) => {
               ctx.stroke();
             }
 
-            if (!isMe) {
+            if (!isMe && !p.isStealth) {
               const barW = 44, barH = 6;
               ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-barW / 2, -38, barW, barH);
               ctx.fillStyle = p.hp > 30 ? '#10b981' : '#f43f5e'; ctx.fillRect(-barW / 2, -38, (p.hp / 100) * barW, barH);
@@ -910,6 +918,7 @@ const Game = ({ roomData }) => {
               ctx.fillText(p.name.toUpperCase(), 0, -45);
             }
             ctx.restore();
+            ctx.globalAlpha = 1.0; // Reset for next player
           });
         }
         ctx.restore();
@@ -970,8 +979,29 @@ const Game = ({ roomData }) => {
             mCtx.fillRect(0, 0, mSize, mSize);
           }
           const kPulse = (Math.sin(Date.now() / 200) + 1) / 2;
-          mCtx.fillStyle = '#eab308'; mCtx.shadowBlur = 10 * kPulse; mCtx.shadowColor = '#eab308'; mCtx.beginPath(); mCtx.arc(state.key.x * mScale, state.key.y * mScale, 4, 0, Math.PI * 2); mCtx.fill(); mCtx.shadowBlur = 0;
-          state.players.forEach(p => { if (p.hp > 0) { mCtx.fillStyle = p.id === socket.id ? '#6366f1' : '#f43f5e'; mCtx.beginPath(); mCtx.arc((p.id === socket.id ? curX : p.x) * mScale, (p.id === socket.id ? curY : p.y) * mScale, 3, 0, Math.PI * 2); mCtx.fill(); } });
+          const carrier = state.players.find(p => p.id === state.key.carrierId);
+          const hideKeyIcon = carrier && carrier.isStealth && carrier.id !== socket.id;
+          
+          if (!hideKeyIcon) {
+            mCtx.fillStyle = '#eab308'; 
+            mCtx.shadowBlur = 10 * kPulse; 
+            mCtx.shadowColor = '#eab308'; 
+            mCtx.beginPath(); 
+            mCtx.arc(state.key.x * mScale, state.key.y * mScale, 4, 0, Math.PI * 2); 
+            mCtx.fill(); 
+            mCtx.shadowBlur = 0;
+          }
+          state.players.forEach(p => { 
+            if (p.hp > 0) { 
+              // Hide stealthy players from minimap unless it's yourself
+              if (p.isStealth && p.id !== socket.id) return;
+              
+              mCtx.fillStyle = p.id === socket.id ? '#6366f1' : '#f43f5e'; 
+              mCtx.beginPath(); 
+              mCtx.arc((p.id === socket.id ? curX : p.x) * mScale, (p.id === socket.id ? curY : p.y) * mScale, 3, 0, Math.PI * 2); 
+              mCtx.fill(); 
+            } 
+          });
         }
       }
 

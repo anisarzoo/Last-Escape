@@ -136,9 +136,9 @@ function applyElimination(room, victim, killerId) {
       killer.score += 1;
       killer.range = Math.min(8, killer.range + 1);
       victim.killedBy = killer.id;
-      killer.hp = Math.min(100, killer.hp + 25);
+      killer.hp = Math.min(100, killer.hp + 15);
       if (wasCarrier) {
-        killer.hp = Math.min(100, killer.hp + 50);
+        killer.hp = Math.min(100, killer.hp + 30);
       }
     } else {
       victim.killedBy = 'ZONE';
@@ -518,7 +518,8 @@ function startGameLoop(roomId) {
         maxAmmo: p.maxAmmo,
         reserveAmmo: p.reserveAmmo,
         isReloading: p.isReloading,
-        lastReloadTime: p.lastReloadTime
+        lastReloadTime: p.lastReloadTime,
+        isStealth: p.isStealth || false
       })),
       bullets: room.bullets.map(b => ({ 
         id: b.id, x: b.x, y: b.y, vx: b.vx, vy: b.vy, bounces: b.bounces 
@@ -655,7 +656,7 @@ function updateRoom(roomId) {
 
       const dist = Math.sqrt((b.x - p.x)**2 + (b.y - p.y)**2);
       if (dist < 20) {
-        const damage = p.isCarryingKey ? 15 : 20;
+        const damage = p.isCarryingKey ? 18 : 20;
         p.hp -= damage;
         
         // Apply Knockback (Pure Velocity)
@@ -719,6 +720,8 @@ function updateRoom(roomId) {
       const dist = Math.sqrt((p.x - room.key.x)**2 + (p.y - room.key.y)**2);
       if (dist < 30) {
         p.isCarryingKey = true;
+        p.isStealth = true;
+        p.stealthStartTime = now;
         room.key.carrierId = pId;
         room.lastKeyUpdate = now;
         room.keyPickupTime = now; // Start the 30s exit wall cooldown
@@ -768,6 +771,11 @@ function updateRoom(roomId) {
       if ((onExitTile || isOutside) && !isExitLocked) {
         endGame(room, carrier);
         return;
+      }
+
+      // Handle Stealth Timeout
+      if (carrier.isStealth && now - carrier.stealthStartTime > 5000) {
+        carrier.isStealth = false;
       }
     } else {
       room.key.carrierId = null;

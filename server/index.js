@@ -115,6 +115,7 @@ function isTeammates(room, aId, bId) {
 function dropKey(room, player) {
   if (!player) return;
   player.isCarryingKey = false;
+  player.isStealth = false; // Reset stealth on drop
   if (room.key.carrierId === player.id) {
     room.key.carrierId = null;
     room.key.x = player.x;

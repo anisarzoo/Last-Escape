@@ -993,12 +993,24 @@ const Game = ({ roomData }) => {
           }
           state.players.forEach(p => { 
             if (p.hp > 0) { 
-              // Hide stealthy players from minimap unless it's yourself
-              if (p.isStealth && p.id !== socket.id) return;
+              const isMe = p.id === socket.id;
+              const meData = state.players.find(lp => lp.id === socket.id);
+              const isTeammate = state.isTeamMode && p.teamId && meData && p.teamId === meData.teamId;
               
-              mCtx.fillStyle = p.id === socket.id ? '#6366f1' : '#f43f5e'; 
+              // Hide stealthy players from minimap unless it's yourself OR a teammate
+              if (p.isStealth && !isMe && !isTeammate) return;
+              
+              // Colors: Me (Blue), Teammate (Emerald), Enemy (Rose)
+              if (isMe) mCtx.fillStyle = '#6366f1';
+              else if (isTeammate) mCtx.fillStyle = '#10b981';
+              else mCtx.fillStyle = '#f43f5e';
+              
+              const sp = smoothedPlayersRef.current[p.id];
+              const drawX = isMe ? curX : (sp ? sp.x : p.x);
+              const drawY = isMe ? curY : (sp ? sp.y : p.y);
+              
               mCtx.beginPath(); 
-              mCtx.arc((p.id === socket.id ? curX : p.x) * mScale, (p.id === socket.id ? curY : p.y) * mScale, 3, 0, Math.PI * 2); 
+              mCtx.arc(drawX * mScale, drawY * mScale, 3, 0, Math.PI * 2); 
               mCtx.fill(); 
             } 
           });

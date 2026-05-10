@@ -876,17 +876,17 @@ const Game = ({ roomData }) => {
               ctx.fillStyle = auraGrad;
               ctx.beginPath(); ctx.arc(0, 0, 32, 0, Math.PI * 2); ctx.fill();
 
-              // Small floating key indicator above head
+              // Small key indicator inside character circle
               ctx.save();
-              ctx.translate(0, -32 - pulse * 4);
+              ctx.translate(0, 0);
               ctx.fillStyle = '#fbbf24';
               ctx.shadowBlur = 10; ctx.shadowColor = '#fbbf24';
-              // Draw a tiny key shape
+              // Draw a tiny key shape centered
               ctx.beginPath();
-              ctx.arc(0, 0, 4, 0, Math.PI * 2);
-              ctx.rect(-1, 4, 2, 8);
-              ctx.rect(1, 6, 3, 2);
-              ctx.rect(1, 9, 3, 2);
+              ctx.arc(0, -4, 4, 0, Math.PI * 2);
+              ctx.rect(-1, 0, 2, 8);
+              ctx.rect(1, 2, 3, 2);
+              ctx.rect(1, 5, 3, 2);
               ctx.fill();
               ctx.restore();
             }

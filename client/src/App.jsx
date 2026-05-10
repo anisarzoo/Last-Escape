@@ -290,29 +290,19 @@ function App() {
                 </>
               ) : (
                 <>
-                  <h2>Room Settings</h2>
-                  <div className="mode-selector">
-                    {MODE_OPTIONS.map((modeOption) => (
-                      <button
-                        key={modeOption.value}
-                        type="button"
-                        className={`mode-pill ${selectedMode === modeOption.value ? 'active' : ''}`}
-                        onClick={() => setSelectedMode(modeOption.value)}
-                      >
-                        <span>{modeOption.label}</span>
-                        <small>{modeOption.description}</small>
-                      </button>
-                    ))}
+                  <h2>Ready for Mission?</h2>
+                  <div className="action-box">
+                    <p className="action-hint">Configure your operational parameters in the Room Settings area.</p>
+                    <button onClick={handleCreate} className="start-btn">
+                      Confirm & Create
+                    </button>
+                    <button 
+                      onClick={() => setShowCreateOptions(false)} 
+                      className="back-btn"
+                    >
+                      Back to Join
+                    </button>
                   </div>
-                  <button onClick={handleCreate} className="start-btn">
-                    Confirm & Create
-                  </button>
-                  <button 
-                    onClick={() => setShowCreateOptions(false)} 
-                    className="back-btn"
-                  >
-                    Back to Join
-                  </button>
                 </>
               )}
             </div>
@@ -328,81 +318,162 @@ function App() {
               </h2>
 
               <div className="mode-readout">
-                <span className="mode-readout-label">Mode</span>
+                <span className="mode-readout-label">Protocol</span>
                 <strong>{modeLabels[roomData?.mode] || 'Free For All'}</strong>
-                {roomData?.isTeamMode && (
-                  <span className="team-balance">TEAM A {teamSummary?.A || 0} : {teamSummary?.B || 0} TEAM B</span>
-                )}
               </div>
               
-              <div className="player-list-scroll">
-                {roomData?.players.map(p => (
-                  <div key={p.id} className="player-row">
-                    <span className="player-dot" style={{ background: p.color, color: p.color }}></span>
-                    <span style={{flex: 1}}>{p.name} {p.id === socket.id && '(You)'}</span>
-                    {roomData?.isTeamMode && p.teamId && (
-                      <span className={`team-chip team-${p.teamId.toLowerCase()}`}>TEAM {p.teamId}</span>
-                    )}
-                    {p.isHost && <Crown size={16} style={{color: '#fbbf24'}} />}
+              <div className="lobby-actions">
+                {roomData?.hostId === socket.id ? (
+                  <button onClick={handleStart} className="start-btn" disabled={!canStartMatch}>
+                    START MISSION
+                  </button>
+                ) : (
+                  <div className="waiting-msg">
+                    <p>Awaiting host initialization...</p>
                   </div>
-                ))}
-              </div>
-
-              {roomData?.hostId === socket.id ? (
-                <button onClick={handleStart} className="start-btn" disabled={!canStartMatch}>
-                  START MISSION
+                )}
+                
+                {!canStartMatch && (
+                  <div className="start-hint">
+                    {roomData?.isTeamMode
+                      ? `Requires exactly ${roomData.maxPlayers} players.`
+                      : 'Requires at least 2 players.'}
+                  </div>
+                )}
+                
+                <button 
+                  onClick={handleLeaveRoom} 
+                  className="leave-btn"
+                >
+                  LEAVE ROOM
                 </button>
-              ) : (
-                <div className="waiting-msg">
-                  <p>Awaiting host initialization...</p>
-                </div>
-              )}
-              {!canStartMatch && (
-                <div className="start-hint">
-                  {roomData?.isTeamMode
-                    ? `Start requires exactly ${roomData.maxPlayers} players (${roomData.teamSize}v${roomData.teamSize}).`
-                    : 'Start requires at least 2 players.'}
-                </div>
-              )}
-              
-              <button 
-                onClick={handleLeaveRoom} 
-                className="leave-btn"
-              >
-                LEAVE ROOM
-              </button>
+              </div>
             </div>
           )}
 
           {/* How to Play Section */}
           <div className="how-to-play">
-            <div className="htp-column">
-              <div className="htp-header">
-                <Trophy className="htp-icon" />
-                <h3>MISSION BRIEFING</h3>
+            {!isJoined && !showCreateOptions && (
+              <div className="htp-column briefing-column">
+                <div className="htp-header">
+                  <Trophy className="htp-icon" />
+                  <h3>MISSION BRIEFING</h3>
+                </div>
+                <p>
+                  Locate and secure the <span>MASTER KEY</span> from the center of the arena. 
+                  Once captured, you must hold the key for <span>60 seconds</span> to override the biometric gate lockdown. 
+                  After the countdown, reach any <span>EXIT</span> tile or cross the perimeter to escape. 
+                  Alternatively, eliminate all opponents to be the <span>last survivor</span>.
+                </p>
               </div>
-              <p>
-                Locate and secure the <span>MASTER KEY</span> from the center of the arena. 
-                Once captured, you must hold the key for <span>60 seconds</span> to override the biometric gate lockdown. 
-                After the countdown, reach any <span>EXIT</span> tile or cross the perimeter to escape. 
-                Alternatively, eliminate all opponents to be the <span>last survivor</span>.
-              </p>
-            </div>
+            )}
+
+            {!isJoined && showCreateOptions && (
+              <div className="htp-column settings-column">
+                <div className="htp-header">
+                  <Settings className="htp-icon" />
+                  <h3>ROOM SETTINGS</h3>
+                </div>
+                <div className="mode-selector-expanded">
+                  {MODE_OPTIONS.map((modeOption) => (
+                    <button
+                      key={modeOption.value}
+                      type="button"
+                      className={`mode-pill-expanded ${selectedMode === modeOption.value ? 'active' : ''}`}
+                      onClick={() => setSelectedMode(modeOption.value)}
+                    >
+                      <div className="mode-pill-content">
+                        <span className="mode-label">{modeOption.label}</span>
+                        <p className="mode-desc">{modeOption.description}</p>
+                      </div>
+                      {selectedMode === modeOption.value && <div className="active-indicator"><Check size={16} /></div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isJoined && (
+              <div className="htp-column players-column">
+                <div className="htp-header">
+                  <Crown className="htp-icon" />
+                  <h3>OPERATIONAL SQUAD</h3>
+                  {roomData?.isTeamMode && (
+                    <span className="team-balance-pill">
+                      TEAM A {teamSummary?.A || 0} : {teamSummary?.B || 0} TEAM B
+                    </span>
+                  )}
+                </div>
+                
+                <div className={`player-grid-expanded ${roomData?.isTeamMode ? 'team-split' : ''}`}>
+                  {roomData?.isTeamMode ? (
+                    <>
+                      <div className="team-group">
+                        <h4 className="team-title title-a">TEAM ALPHA</h4>
+                        {roomData.players.filter(p => p.teamId === 'A').map(p => (
+                          <div key={p.id} className="player-row-expanded">
+                            <span className="player-dot" style={{ background: p.color }}></span>
+                            <span className="player-name">{p.name} {p.id === socket.id && '(You)'}</span>
+                            {p.isHost && <Crown size={14} className="host-icon" />}
+                          </div>
+                        ))}
+                        {/* Empty slots */}
+                        {Array.from({ length: roomData.teamSize - roomData.players.filter(p => p.teamId === 'A').length }).map((_, i) => (
+                          <div key={`empty-a-${i}`} className="player-row-expanded empty">
+                            <span className="player-name">Awaiting Operative...</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="team-group">
+                        <h4 className="team-title title-b">TEAM BRAVO</h4>
+                        {roomData.players.filter(p => p.teamId === 'B').map(p => (
+                          <div key={p.id} className="player-row-expanded">
+                            <span className="player-dot" style={{ background: p.color }}></span>
+                            <span className="player-name">{p.name} {p.id === socket.id && '(You)'}</span>
+                            {p.isHost && <Crown size={14} className="host-icon" />}
+                          </div>
+                        ))}
+                        {/* Empty slots */}
+                        {Array.from({ length: roomData.teamSize - roomData.players.filter(p => p.teamId === 'B').length }).map((_, i) => (
+                          <div key={`empty-b-${i}`} className="player-row-expanded empty">
+                            <span className="player-name">Awaiting Operative...</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="ffa-list-expanded">
+                      {roomData?.players.map(p => (
+                        <div key={p.id} className="player-row-expanded">
+                          <div className="player-info-main">
+                            <span className="player-dot" style={{ background: p.color }}></span>
+                            <span className="player-name">{p.name} {p.id === socket.id && '(You)'}</span>
+                          </div>
+                          {p.isHost && <div className="host-badge"><Crown size={12} /> HOST</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
 
             
-            <div className="htp-column">
-              <div className="htp-header">
-                <Gamepad2 className="htp-icon" />
-                <h3>CONTROLS</h3>
+            {!isJoined && !showCreateOptions && (
+              <div className="htp-column controls-column">
+                <div className="htp-header">
+                  <Gamepad2 className="htp-icon" />
+                  <h3>CONTROLS</h3>
+                </div>
+                <div className="controls-grid">
+                  <div className="control-item"><span>WASD / ARROWS</span> MOVE</div>
+                  <div className="control-item"><span>MOUSE</span> AIM</div>
+                  <div className="control-item"><span>LEFT CLICK</span> FIRE</div>
+                  <div className="control-item"><span>SHIFT / R</span> DASH / RELOAD</div>
+                </div>
               </div>
-              <div className="controls-grid">
-                <div className="control-item"><span>WASD / ARROWS</span> MOVE</div>
-                <div className="control-item"><span>MOUSE</span> AIM</div>
-                <div className="control-item"><span>LEFT CLICK</span> FIRE</div>
-                <div className="control-item"><span>SHIFT / R</span> DASH / RELOAD</div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
         <div className="app-version">{APP_VERSION}</div>

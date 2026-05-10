@@ -162,42 +162,44 @@ function App() {
             <h4>ADVANCED PROTOCOLS</h4>
             <button className="rules-close-btn" onClick={() => setShowRules(false)}>&times;</button>
           </div>
-          <div className="rules-grid">
-            <div className="rules-section">
-              <h5>Gate Lockdown</h5>
-              <p>Exit gates are <span>biometrically locked</span>. You must secure the <span>Master Key</span> and hold it for <span>60 seconds</span> to override the lockdown and open the exits.</p>
-            </div>
-            <div className="rules-section">
-              <h5>Neural Siphon</h5>
-              <p>The key holder <span>drains health</span> from all opponents. Siphon intensity <span>doubles</span> after 60 seconds of possession.</p>
-            </div>
-            <div className="rules-section">
-              <h5>Biometric Shield</h5>
-              <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>10%</span>.</p>
-            </div>
-            <div className="rules-section">
-              <h5>Combat Siphon</h5>
-              <p>Every elimination restores <span>15% HP</span> and permanently boosts your <span>Weapon Range</span>.</p>
-            </div>
-            <div className="rules-section">
-              <h5>Atmospheric Collapse</h5>
-              <p>The <span>Safe Zone</span> shrinks until the <span>Master Key</span> is secured. Once captured, the zone stabilizes.</p>
-            </div>
-            <div className="rules-section">
-              <h5>Arena Lock</h5>
-              <p>Walls are <span>structurally reinforced</span> and invulnerable for the first <span>30 seconds</span> of the mission.</p>
-            </div>
-            <div className="rules-section">
-              <h5>Supply Drops</h5>
-              <p><span>Strategic resources</span> spawn periodically. Secure <span>Medkits</span> for HP or <span>Munition Packs</span> to replenish reserve ammo.</p>
-            </div>
-            <div className="rules-section">
-              <h5>Ghost Protocol</h5>
-              <p>Securing the Master Key activates an <span>unbreakable cloak</span> for <span>5 seconds</span>, rendering you 100% invisible to opponents.</p>
-            </div>
-            <div className="rules-section">
-              <h5>Ballistic Ricochet</h5>
-              <p>Projectiles are designed for indoor combat, <span>bouncing off surfaces</span> up to 2 times. Use indirect fire to eliminate targets around corners.</p>
+          <div className="rules-scroll-area">
+            <div className="rules-grid">
+              <div className="rules-section">
+                <h5>Gate Lockdown</h5>
+                <p>Exit gates are <span>biometrically locked</span>. You must secure the <span>Master Key</span> and hold it for <span>60 seconds</span> to override the lockdown and open the exits.</p>
+              </div>
+              <div className="rules-section">
+                <h5>Neural Siphon</h5>
+                <p>The key holder <span>drains health</span> from all opponents. Siphon intensity <span>doubles</span> after 60 seconds of possession.</p>
+              </div>
+              <div className="rules-section">
+                <h5>Biometric Shield</h5>
+                <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>10%</span>.</p>
+              </div>
+              <div className="rules-section">
+                <h5>Combat Siphon</h5>
+                <p>Every elimination restores <span>15% HP</span> and permanently boosts your <span>Weapon Range</span>.</p>
+              </div>
+              <div className="rules-section">
+                <h5>Atmospheric Collapse</h5>
+                <p>The <span>Safe Zone</span> shrinks until the <span>Master Key</span> is secured. Once captured, the zone stabilizes.</p>
+              </div>
+              <div className="rules-section">
+                <h5>Arena Lock</h5>
+                <p>Walls are <span>structurally reinforced</span> and invulnerable for the first <span>30 seconds</span> of the mission.</p>
+              </div>
+              <div className="rules-section">
+                <h5>Supply Drops</h5>
+                <p><span>Strategic resources</span> spawn periodically. Secure <span>Medkits</span> for HP or <span>Munition Packs</span> to replenish reserve ammo.</p>
+              </div>
+              <div className="rules-section">
+                <h5>Ghost Protocol</h5>
+                <p>Securing the Master Key activates an <span>unbreakable cloak</span> for <span>5 seconds</span>, rendering you 100% invisible to opponents.</p>
+              </div>
+              <div className="rules-section">
+                <h5>Ballistic Ricochet</h5>
+                <p>Projectiles are designed for indoor combat, <span>bouncing off surfaces</span> up to 2 times. Use indirect fire to eliminate targets around corners.</p>
+              </div>
             </div>
           </div>
         </div>

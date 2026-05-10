@@ -109,8 +109,11 @@ body {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 20px;
-  padding: 2.5rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 90vh;
   opacity: 0;
   visibility: hidden;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -132,9 +135,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  padding: 1.5rem 2.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 0.5rem;
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 10;
 }
 
 .rules-tooltip-card h4 {
@@ -182,20 +186,15 @@ body {
   .rules-tooltip-card {
     max-width: 500px;
     width: 90vw;
-    max-height: 85vh;
-    overflow-y: auto;
-    padding: 1.5rem;
     border-radius: 16px;
-    /* Specific scrollbar styling for the modal */
-    scrollbar-gutter: stable;
   }
   
-  .rules-tooltip-card::-webkit-scrollbar {
-    width: 3px;
+  .rules-header-row {
+    padding: 1rem 1.5rem;
   }
   
-  .rules-tooltip-card::-webkit-scrollbar-thumb {
-    background: rgba(129, 140, 248, 0.5);
+  .rules-scroll-area {
+    padding: 1rem 1.5rem;
   }
   
   .rules-grid {
@@ -210,11 +209,26 @@ body {
   .rules-close-btn { font-size: 1.5rem; }
 }
 
+.rules-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2.5rem;
+  scrollbar-gutter: stable;
+}
+
+.rules-scroll-area::-webkit-scrollbar {
+  width: 4px;
+}
+
+.rules-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(129, 140, 248, 0.4);
+}
+
 .rules-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem 2rem;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .rules-section {

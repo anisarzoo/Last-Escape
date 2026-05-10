@@ -558,43 +558,45 @@ const Game = ({ roomData }) => {
         const angleDiff = (targetAngle - aimAngleRef.current + Math.PI * 3) % (Math.PI * 2) - Math.PI;
         aimAngleRef.current += angleDiff * 0.4 * dt;
 
-        const r = 14;
+        // Sub-stepping for collision (2 steps)
+        const steps = 2;
         let px = posRef.current.x, py = posRef.current.y;
-        const isExitLocked = !state?.key?.carrierId || (state?.pickupLockoutRemaining > 0);
+        const r = 14;
 
-        let tx = px + dx;
-        if (Math.abs(inputY) > 0.1 && Math.abs(inputX) < 0.5) tx += ((Math.floor(px / TILE_SIZE) + 0.5) * TILE_SIZE - px) * 0.25 * dt;
-        let canX = true;
-        if (tx < 0 || tx > currentMazeWidth) canX = false;
+        for (let s = 1; s <= steps; s++) {
+          const t = s / steps;
+          const tx = posRef.current.x + dx * t;
+          const ty = posRef.current.y + dy * t;
 
-        if (canX) {
           const currentMaze = loopMaze;
           const curPts = [{ x: px - r, y: py - r }, { x: px + r, y: py - r }, { x: px - r, y: py + r }, { x: px + r, y: py + r }];
           const isCurrentlyInExit = curPts.some(p => currentMaze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)] === 2);
-          const xPts = [{ x: tx - r, y: py - r }, { x: tx + r, y: py - r }, { x: tx - r, y: py + r }, { x: tx + r, y: py + r }];
-          for (let p of xPts) {
-            const tile = currentMaze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)];
-            if (tile === 1 || tile === 3 || (tile === 2 && isExitLocked && !isCurrentlyInExit)) { canX = false; break; }
-          }
-        }
-        if (canX) px = tx; else velRef.current.x = 0;
+          const isExitLocked = !state?.key?.carrierId || (state?.pickupLockoutRemaining > 0);
 
-        let ty = py + dy;
-        if (Math.abs(inputX) > 0.1 && Math.abs(inputY) < 0.5) ty += ((Math.floor(py / TILE_SIZE) + 0.5) * TILE_SIZE - py) * 0.25 * dt;
-        let canY = true;
-        if (ty < 0 || ty > currentMazeHeight) canY = false;
-
-        if (canY) {
-          const currentMaze = loopMaze;
-          const curPts = [{ x: px - r, y: py - r }, { x: px + r, y: py - r }, { x: px - r, y: py + r }, { x: px + r, y: py + r }];
-          const isCurrentlyInExit = curPts.some(p => currentMaze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)] === 2);
-          const yPts = [{ x: px - r, y: ty - r }, { x: px + r, y: ty - r }, { x: px - r, y: ty + r }, { x: px + r, y: ty + r }];
-          for (let p of yPts) {
-            const tile = currentMaze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)];
-            if (tile === 1 || tile === 3 || (tile === 2 && isExitLocked && !isCurrentlyInExit)) { canY = false; break; }
+          // Check X movement
+          let canX = true;
+          if (tx < -TILE_SIZE || tx > currentMazeWidth + TILE_SIZE) canX = false;
+          if (canX) {
+            const xPts = [{ x: tx - r, y: py - r }, { x: tx + r, y: py - r }, { x: tx - r, y: py + r }, { x: tx + r, y: py + r }];
+            for (let p of xPts) {
+              const tile = currentMaze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)];
+              if (tile === 1 || tile === 3 || (tile === 2 && isExitLocked && !isCurrentlyInExit)) { canX = false; break; }
+            }
           }
+          if (canX) px = tx; else velRef.current.x = 0;
+
+          // Check Y movement
+          let canY = true;
+          if (ty < -TILE_SIZE || ty > currentMazeHeight + TILE_SIZE) canY = false;
+          if (canY) {
+            const yPts = [{ x: px - r, y: ty - r }, { x: px + r, y: ty - r }, { x: px - r, y: ty + r }, { x: px + r, y: ty + r }];
+            for (let p of yPts) {
+              const tile = currentMaze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)];
+              if (tile === 1 || tile === 3 || (tile === 2 && isExitLocked && !isCurrentlyInExit)) { canY = false; break; }
+            }
+          }
+          if (canY) py = ty; else velRef.current.y = 0;
         }
-        if (canY) py = ty; else velRef.current.y = 0;
 
         const angleChanged = Math.abs(angleDiff) > 0.01;
         if (!isEliminated && (px !== posRef.current.x || py !== posRef.current.y || angleChanged)) {

@@ -287,29 +287,54 @@ io.on('connection', (socket) => {
     const player = players[socket.id];
     const room = rooms[player?.roomId];
     if (player && player.hp > 0 && room && room.gameStarted) {
-      // Radius-based collision check
-      const r = 14;
-      const points = [
-        { x: movement.x - r, y: movement.y - r },
-        { x: movement.x + r, y: movement.y - r },
-        { x: movement.x - r, y: movement.y + r },
-        { x: movement.x + r, y: movement.y + r }
-      ];
-
+      // Sub-stepping for collision (2 steps)
+      const steps = 2;
       let canMove = true;
-      const isCurrentlyInExit = points.some(p => room.maze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)] === 2);
+      let finalX = player.x;
+      let finalY = player.y;
 
-      for (const p of points) {
-        const tileX = Math.floor(p.x / TILE_SIZE);
-        const tileY = Math.floor(p.y / TILE_SIZE);
-        
-        if (
-          tileY >= 0 && tileY < room.maze.length &&
-          tileX >= 0 && tileX < room.maze[0].length &&
-          (room.maze[tileY][tileX] === 1 || room.maze[tileY][tileX] === 3 || (room.maze[tileY][tileX] === 2 && (!room.key.carrierId || (room.keyPickupTime && (Date.now() - room.keyPickupTime < 60000))) && !isCurrentlyInExit))
-        ) {
+      const r = 14;
+      const currentPoints = [
+        { x: player.x - r, y: player.y - r },
+        { x: player.x + r, y: player.y - r },
+        { x: player.x - r, y: player.y + r },
+        { x: player.x + r, y: player.y + r }
+      ];
+      const isCurrentlyInExit = currentPoints.some(p => room.maze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)] === 2);
+
+      for (let s = 1; s <= steps; s++) {
+        const t = s / steps;
+        const testX = player.x + (movement.x - player.x) * t;
+        const testY = player.y + (movement.y - player.y) * t;
+
+        const points = [
+          { x: testX - r, y: testY - r },
+          { x: testX + r, y: testY - r },
+          { x: testX - r, y: testY + r },
+          { x: testX + r, y: testY + r }
+        ];
+
+        let stepBlocked = false;
+        for (const p of points) {
+          const tileX = Math.floor(p.x / TILE_SIZE);
+          const tileY = Math.floor(p.y / TILE_SIZE);
+          const tile = room.maze[tileY]?.[tileX];
+          
+          if (
+            tile === 1 || tile === 3 || 
+            (tile === 2 && (!room.key.carrierId || (room.keyPickupTime && (Date.now() - room.keyPickupTime < 60000))) && !isCurrentlyInExit)
+          ) {
+            stepBlocked = true;
+            break;
+          }
+        }
+
+        if (stepBlocked) {
           canMove = false;
           break;
+        } else {
+          finalX = testX;
+          finalY = testY;
         }
       }
       
@@ -320,7 +345,8 @@ io.on('connection', (socket) => {
         player.x = movement.x;
         player.y = movement.y;
       } else {
-        // Send correction if movement was blocked
+        player.x = finalX;
+        player.y = finalY;
         socket.emit('position-correction', { x: player.x, y: player.y });
       }
       
@@ -576,7 +602,7 @@ function updateRoom(roomId) {
     room.zoneRadius = Math.max(0, room.zoneRadius - shrinkPerTick);
   } else if (!room.zoneRemoved) {
     room.zoneRemoved = true;
-    room.zoneRadius = 99999;
+    room.zoneRadius = 99999; // Zone disappears on pickup
     io.to(roomId).emit('play-sound', { x: MAZE_WIDTH/2, y: MAZE_HEIGHT/2, type: 'zone-removed' });
   }
 
@@ -767,7 +793,7 @@ function updateRoom(roomId) {
       // Win Condition Check: Escape map through corners or reach EXIT tile
       const tileX = Math.floor(carrier.x / TILE_SIZE);
       const tileY = Math.floor(carrier.y / TILE_SIZE);
-      const onExitTile = MAZE_MAP[tileY] && MAZE_MAP[tileY][tileX] === 2;
+      const onExitTile = room.maze[tileY] && room.maze[tileY][tileX] === 2;
       const isOutside = carrier.x < -20 || carrier.x > MAZE_WIDTH + 20 || carrier.y < -20 || carrier.y > MAZE_HEIGHT + 20;
 
       const isExitLocked = room.keyPickupTime && (now - room.keyPickupTime < 60000);

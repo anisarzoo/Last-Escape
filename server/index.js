@@ -70,8 +70,9 @@ function getRoomPlayers(room) {
 }
 
 function buildRoomPayload(room) {
+  const { interval, ...rest } = room;
   return {
-    ...room,
+    ...rest,
     players: getRoomPlayers(room)
   };
 }
@@ -221,7 +222,8 @@ io.on('connection', (socket) => {
         zoneRemoved: false,
         startTime: null,
         keyPickupTime: null,
-        status: 'waiting'
+        status: 'waiting',
+        interval: null
       };
     }
 
@@ -564,6 +566,7 @@ io.on('connection', (socket) => {
         }
         room.players = room.players.filter(id => id !== socket.id);
         if (room.players.length === 0) {
+          if (room.interval) clearInterval(room.interval);
           delete rooms[player.roomId];
         } else {
           if (room.hostId === socket.id) {
@@ -591,6 +594,7 @@ io.on('connection', (socket) => {
         
         room.players = room.players.filter(id => id !== socket.id);
         if (room.players.length === 0) {
+          if (room.interval) clearInterval(room.interval);
           delete rooms[player.roomId];
         } else {
           if (room.hostId === socket.id) {
@@ -612,19 +616,22 @@ httpServer.listen(PORT, () => {
 });
 
 function startGameLoop(roomId) {
-  if (!rooms[roomId]) return;
+  const room = rooms[roomId];
+  if (!room) return;
+
+  if (room.interval) clearInterval(room.interval);
 
   const TICK_RATE = 30;
-  const interval = setInterval(() => {
+  room.interval = setInterval(() => {
     if (!rooms[roomId]) {
-      clearInterval(interval);
+      if (room.interval) clearInterval(room.interval);
       return;
     }
 
     updateRoom(roomId);
     const room = rooms[roomId];
     if (!room) {
-      clearInterval(interval);
+      if (room.interval) clearInterval(room.interval);
       return;
     }
 
@@ -668,7 +675,7 @@ function startGameLoop(roomId) {
 
 function updateRoom(roomId) {
   const room = rooms[roomId];
-  if (!room) return;
+  if (!room || !room.gameStarted) return;
 
   // Handle Pickups Spawning
   if (!room.lastPickupSpawn || Date.now() - room.lastPickupSpawn > 10000) {

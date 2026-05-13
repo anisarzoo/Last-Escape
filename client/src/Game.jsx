@@ -301,6 +301,7 @@ const Game = ({ roomData, settings }) => {
   const mobileShootRef = useRef(false);
   const shootTouchIdRef = useRef(null);
   const shootTouchStartRef = useRef({ x: 0, y: 0 });
+  const [isDedicatedFiring, setIsDedicatedFiring] = useState(false);
 
   const prevPlayersRef = useRef({});
   const localPlayer = uiGameState?.players.find((p) => p.id === socket.id);
@@ -617,10 +618,17 @@ const Game = ({ roomData, settings }) => {
           const camY = height / 2 - smoothedCameraRef.current.y;
           const playerScreenX = posRef.current.x + camX;
           const playerScreenY = posRef.current.y + camY;
-          targetAngle = Math.atan2(mousePosRef.current.y - playerScreenY, mousePosRef.current.x - playerScreenX);
+          const mdx = mousePosRef.current.x - playerScreenX;
+          const mdy = mousePosRef.current.y - playerScreenY;
+          if (Math.abs(mdx) > 5 || Math.abs(mdy) > 5) {
+            targetAngle = Math.atan2(mdy, mdx);
+          }
         }
 
-        const angleDiff = targetAngle - aimAngleRef.current;
+        let angleDiff = targetAngle - aimAngleRef.current;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        
         const sens = settings?.mouseSensitivity || 1.0;
         aimAngleRef.current += angleDiff * 0.4 * sens * dt;
 
@@ -931,7 +939,7 @@ const Game = ({ roomData, settings }) => {
             const pAngle = isMe ? aimAngleRef.current : (p.aimAngle || 0);
             
             if (p.isStealth) {
-              ctx.globalAlpha = isMe ? 0.4 : 0;
+              ctx.globalAlpha = (isMe || isTeammate) ? 0.4 : 0;
             } else {
               ctx.globalAlpha = 1.0;
             }
@@ -1238,7 +1246,6 @@ const Game = ({ roomData, settings }) => {
     initAudio();
     const { width, height } = dimsRef.current;
     const hud = settings?.mobileControls?.hud;
-    const isSouthpaw = settings?.mobileControls?.layout === 'southpaw';
     const isDedicatedFire = settings?.mobileControls?.fireMode === 'dedicated';
 
     for (let i = 0; i < e.changedTouches.length; i++) {
@@ -1267,6 +1274,7 @@ const Game = ({ roomData, settings }) => {
       }
       if (isDedicatedFire && checkBtn('fireBtn')) {
         mobileShootRef.current = true;
+        setIsDedicatedFiring(true);
         shootTouchIdRef.current = touch.identifier;
         continue;
       }
@@ -1366,6 +1374,7 @@ const Game = ({ roomData, settings }) => {
 
       if (shootTouchIdRef.current === identifier) {
         mobileShootRef.current = false;
+        setIsDedicatedFiring(false);
         shootTouchIdRef.current = null;
       }
     }
@@ -1451,7 +1460,7 @@ const Game = ({ roomData, settings }) => {
           {/* Dedicated Fire Button */}
           {settings.mobileControls.fireMode === 'dedicated' && (
             <button
-              className={`mobile-btn fire-btn ${mobileShootRef.current ? 'active' : ''}`}
+              className={`mobile-btn fire-btn ${isDedicatedFiring ? 'active' : ''}`}
               style={{
                 position: 'fixed',
                 left: `${settings.mobileControls.hud.fireBtn.x}%`,
@@ -1460,12 +1469,12 @@ const Game = ({ roomData, settings }) => {
                 margin: 0,
                 width: '70px',
                 height: '70px',
-                background: mobileShootRef.current ? 'rgba(244, 63, 94, 0.4)' : 'rgba(244, 63, 94, 0.15)',
+                background: isDedicatedFiring ? 'rgba(244, 63, 94, 0.4)' : 'rgba(244, 63, 94, 0.15)',
                 borderColor: 'var(--danger)',
-                boxShadow: mobileShootRef.current ? '0 0 20px rgba(244, 63, 94, 0.4)' : 'none'
+                boxShadow: isDedicatedFiring ? '0 0 20px rgba(244, 63, 94, 0.4)' : 'none'
               }}
             >
-              <Zap size={30} color={mobileShootRef.current ? '#fff' : 'var(--danger)'} />
+              <Zap size={30} color={isDedicatedFiring ? '#fff' : 'var(--danger)'} />
             </button>
           )}
 

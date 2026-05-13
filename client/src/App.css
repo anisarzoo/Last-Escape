@@ -2014,7 +2014,6 @@ button:disabled {
 }
 
 .mobile-btn:active {
-  transform: scale(0.9);
   background: var(--primary);
 }
 
@@ -2053,9 +2052,6 @@ button:disabled {
 }
 
 .reload-btn:active {
-
-
-  transform: scale(0.9) !important;
   background: #fde047 !important;
   color: #000 !important;
   box-shadow: 0 0 30px #fde047 !important;
@@ -2077,9 +2073,9 @@ button:disabled {
 }
 
 @keyframes reload-pulse-thunder {
-  0% { box-shadow: 0 0 10px #fde047; transform: scale(1); }
-  50% { box-shadow: 0 0 25px #fde047; transform: scale(1.03); }
-  100% { box-shadow: 0 0 10px #fde047; transform: scale(1); }
+  0% { box-shadow: 0 0 10px #fde047; }
+  50% { box-shadow: 0 0 25px #fde047; }
+  100% { box-shadow: 0 0 10px #fde047; }
 }
 
 

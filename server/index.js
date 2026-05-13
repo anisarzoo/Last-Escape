@@ -316,6 +316,7 @@ io.on('connection', (socket) => {
       });
 
       io.to(room.id).emit('room-update', buildRoomPayload(room));
+      io.to(room.id).emit('initial-maze', room.maze);
       io.to(room.id).emit('rematch-triggered');
     }
   });

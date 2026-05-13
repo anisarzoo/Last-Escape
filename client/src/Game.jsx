@@ -212,7 +212,7 @@ const Game = ({ roomData, settings }) => {
 
   // High-frequency state moved to Refs
   const gameStateRef = useRef(null);
-  const mazeRef = useRef(MAZE_MAP);
+  const mazeRef = useRef(JSON.parse(JSON.stringify(MAZE_MAP)));
 
   // UI-triggering state
   const [uiGameState, setUiGameState] = useState(null);

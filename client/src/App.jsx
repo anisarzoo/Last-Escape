@@ -481,13 +481,13 @@ function App() {
                           </button>
                         </div>
                       </div>
-                      <button 
-                        className="hud-calibrate-btn"
-                        onClick={() => setIsEditingHUD(true)}
-                      >
-                        <Move size={16} />
-                        CUSTOMIZE HUD (DRAG & DROP)
-                      </button>
+                        <button 
+                          className="hud-calibrate-btn"
+                          onClick={() => setIsEditingHUD(true)}
+                        >
+                          <Move size={16} />
+                          CUSTOMIZE HUD
+                        </button>
                     </>
                   ) : (
                     <>

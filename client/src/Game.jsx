@@ -552,23 +552,37 @@ const Game = ({ roomData }) => {
         }
 
         let inputX = 0, inputY = 0;
-        if (keys['ArrowUp'] || keys['w'] || keys['W']) inputY -= 1;
-        if (keys['ArrowDown'] || keys['s'] || keys['S']) inputY += 1;
-        if (keys['ArrowLeft'] || keys['a'] || keys['A']) inputX -= 1;
-        if (keys['ArrowRight'] || keys['d'] || keys['D']) inputX += 1;
+        // Check WASD and Arrows with robust key mapping
+        if (keys['w'] || keys['W'] || keys['ArrowUp'] || keys['Up']) inputY -= 1;
+        if (keys['s'] || keys['S'] || keys['ArrowDown'] || keys['Down']) inputY += 1;
+        if (keys['a'] || keys['A'] || keys['ArrowLeft'] || keys['Left']) inputX -= 1;
+        if (keys['d'] || keys['D'] || keys['ArrowRight'] || keys['Right']) inputX += 1;
 
-        if (moveJoystickRef.current.active) {
+        // --- KEYBOARD NORMALIZATION ---
+        // Prevents PC players from moving ~41% faster diagonally
+        if (inputX !== 0 && inputY !== 0) {
+          const mag = Math.sqrt(inputX * inputX + inputY * inputY);
+          inputX /= mag;
+          inputY /= mag;
+        }
+
+        // Only let the joystick override keyboard if it's actually being moved
+        if (moveJoystickRef.current.active && (Math.abs(moveJoystickRef.current.x) > 0.1 || Math.abs(moveJoystickRef.current.y) > 0.1)) {
           inputX = moveJoystickRef.current.x;
           inputY = moveJoystickRef.current.y;
         }
 
-        const ACCEL = 0.8 * dt * speedMultiplier;
-        const FRICTION = isDashing ? 0.98 : 0.85;
-        if (inputX !== 0) velRef.current.x += inputX * ACCEL;
-        if (inputY !== 0) velRef.current.y += inputY * ACCEL;
-        const frictionDt = Math.pow(FRICTION, dt);
-        velRef.current.x *= frictionDt;
-        velRef.current.y *= frictionDt;
+        // --- ANALYTIC PHYSICS INTEGRATION (v2) ---
+        // BASE_ACCEL increased to 0.92 to restore the "snappy" top speed on 144Hz
+        const BASE_ACCEL = 0.92 * speedMultiplier;
+        const CURRENT_FRICTION = isDashing ? 0.98 : 0.85;
+        const k = -Math.log(CURRENT_FRICTION);
+        const frictionDt = Math.pow(CURRENT_FRICTION, dt);
+        
+        // We use a small epsilon for k to avoid division by zero
+        const dragFactor = k > 0.0001 ? (1 - frictionDt) / k : dt;
+        velRef.current.x = velRef.current.x * frictionDt + inputX * BASE_ACCEL * dragFactor;
+        velRef.current.y = velRef.current.y * frictionDt + inputY * BASE_ACCEL * dragFactor;
 
         if (isDashing) {
           const dashMag = 8;
@@ -1221,6 +1235,13 @@ const Game = ({ roomData }) => {
       window.removeEventListener('contextmenu', handleContextMenu);
       socket.off('game-state');
       socket.off('game-over');
+      socket.off('initial-maze');
+      socket.off('maze-update');
+      socket.off('position-correction');
+
+      // Clear high-frequency refs to prevent visual bleed into next session
+      particlesRef.current = [];
+      floatingNumbersRef.current = [];
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomData, spectateTargetId, isSpectating]);

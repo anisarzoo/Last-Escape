@@ -267,6 +267,57 @@ io.on('connection', (socket) => {
     console.log(`${playerName} joined room ${roomId}`);
   });
 
+  socket.on('rematch', () => {
+    const player = players[socket.id];
+    const room = rooms[player?.roomId];
+    if (player && room && room.hostId === socket.id) {
+      // Reset room state
+      room.gameStarted = false;
+      room.status = 'waiting';
+      room.bullets = [];
+      room.pickups = [];
+      room.maze = JSON.parse(JSON.stringify(MAZE_MAP));
+      room.weakWallsHP = {};
+      room.key = { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null };
+      room.zoneRadius = Math.sqrt((MAZE_WIDTH / 2) ** 2 + (MAZE_HEIGHT / 2) ** 2) + 200;
+      room.zoneRemoved = false;
+      room.startTime = null;
+      room.keyPickupTime = null;
+
+      // Reset all players in the room
+      // First move everyone out of the way so spawn point logic works correctly
+      room.players.forEach(pId => {
+        const p = players[pId];
+        if (p) {
+          p.x = -999;
+          p.y = -999;
+        }
+      });
+
+      room.players.forEach(pId => {
+        const p = players[pId];
+        if (p) {
+          const startPos = getSpawnPoint(room, p.teamId);
+          p.x = startPos.x;
+          p.y = startPos.y;
+          p.hp = 100;
+          p.score = 0;
+          p.range = 5;
+          p.isCarryingKey = false;
+          p.totalKeyHoldTime = 0;
+          p.ammo = 6;
+          p.reserveAmmo = 12;
+          p.isReloading = false;
+          p.killedBy = null;
+          p.isStealth = false;
+        }
+      });
+
+      io.to(room.id).emit('room-update', buildRoomPayload(room));
+      io.to(room.id).emit('rematch-triggered');
+    }
+  });
+
   socket.on('switch-team', ({ teamId }) => {
     const player = players[socket.id];
     const room = rooms[player?.roomId];
@@ -917,5 +968,7 @@ function endGame(room, winner) {
       isWinner: room.isTeamMode ? (p.teamId === winnerTeamId && winnerTeamId !== null) : p.id === winner?.id
     }))
   });
-  delete rooms[roomId];
+  
+  room.gameStarted = false;
+  room.status = 'finished';
 }

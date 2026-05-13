@@ -1587,7 +1587,12 @@ const Game = ({ roomData }) => {
             </div>
 
             <div className="overlay-buttons">
-              <button onClick={() => window.location.reload()}>REDEPLOY AGENT</button>
+              {roomData?.hostId === socket.id ? (
+                <button onClick={() => socket.emit('rematch')}>REMATCH</button>
+              ) : (
+                <button disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>WAITING FOR HOST...</button>
+              )}
+              <button onClick={() => window.location.reload()} className="secondary-btn">LEAVE MISSION</button>
             </div>
           </div>
         </div>

@@ -63,14 +63,20 @@ function App() {
       setTimeout(() => setError(''), 4000);
     }
 
+    function onRematchTriggered() {
+      setGameStarted(false);
+    }
+
     socket.on('room-update', onRoomUpdate);
     socket.on('game-started', onGameStarted);
     socket.on('error', onError);
+    socket.on('rematch-triggered', onRematchTriggered);
 
     return () => {
       socket.off('room-update', onRoomUpdate);
       socket.off('game-started', onGameStarted);
       socket.off('error', onError);
+      socket.off('rematch-triggered', onRematchTriggered);
     };
   }, []);
 

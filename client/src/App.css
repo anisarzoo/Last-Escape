@@ -146,8 +146,34 @@ body {
 }
 
 .settings-modal-card {
-  max-width: 750px; /* Wider for desktop legibility */
+  max-width: 650px;
+  height: 520px;
+  display: flex;
+  flex-direction: column;
 }
+
+.settings-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 2.5rem 1.5rem;
+  scrollbar-width: thin;
+}
+
+.settings-scroll-area::-webkit-scrollbar {
+  width: 3px;
+}
+
+.settings-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.settings-content-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 
 .rules-floating-btn.active + .rules-tooltip-card,
 .settings-floating-btn.active + .settings-modal-card,
@@ -219,9 +245,10 @@ body {
 }
 
 @media (max-width: 900px), (max-height: 500px) {
-  .rules-tooltip-card {
+  .rules-tooltip-card, .settings-modal-card {
     max-width: 500px;
     width: 90vw;
+    height: 85vh;
     border-radius: 16px;
   }
   
@@ -2614,14 +2641,14 @@ button:disabled {
 .settings-group-compact {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.5rem 0.5rem;
+  gap: 0.8rem;
+  padding: 0;
 }
 
 .settings-item-row {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.4rem;
 }
 
 .settings-info {
@@ -2790,7 +2817,7 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.4rem;
-  margin-top: 0.25rem;
+  margin-top: 0.1rem;
 }
 
 .binding-item {
@@ -2984,7 +3011,7 @@ button:disabled {
   font-weight: 900 !important;
   letter-spacing: 2px !important;
   border-radius: 0.6rem !important;
-  margin-top: 1.5rem;
+  margin-top: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease !important;
   box-shadow: none !important;

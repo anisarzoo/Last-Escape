@@ -2901,12 +2901,24 @@ button:disabled {
 }
 
 .hud-editor-header {
-  padding: 1.75rem 3rem;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1rem 0;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(15, 23, 42, 0.8);
+  justify-content: flex-start;
+  gap: 0.4rem;
+  background: transparent;
+  border-bottom: none;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.hud-editor-title-group, .save-hud-btn {
+  pointer-events: auto;
 }
 
 .hud-editor-title-group h3 {
@@ -2919,29 +2931,34 @@ button:disabled {
 }
 
 .hud-editor-title-group p {
-  margin: 6px 0 0;
-  font-size: 0.65rem;
-  color: #64748b;
+  margin: 4px 0 0;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.4);
   letter-spacing: 1px;
   font-weight: 600;
 }
 
 .save-hud-btn {
-  background: var(--primary) !important;
-  color: #fff !important;
-  padding: 0.75rem 2rem !important;
-  font-size: 0.8rem !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  padding: 0.35rem 0.8rem !important;
+  font-size: 0.6rem !important;
   font-weight: 900 !important;
-  border-radius: 0.6rem !important;
-  box-shadow: 0 0 20px var(--primary-glow) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
   letter-spacing: 2px;
   transition: all 0.3s ease !important;
 }
 
 .save-hud-btn:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.1);
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: var(--primary) !important;
+  color: #fff !important;
+  transform: translateY(-1px);
 }
+
+
 
 .hud-editor-canvas {
   flex: 1;

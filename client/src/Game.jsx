@@ -1271,8 +1271,13 @@ const Game = ({ roomData, settings }) => {
         continue;
       }
 
-      // Joystick Logic (Split Screen fallback)
-      const isMoveZone = isSouthpaw ? (clientX > width / 2) : (clientX < width / 2);
+      // Dynamic Joystick Zones based on HUD placement
+      const moveX = hud.moveJoystick.x;
+      const aimX = hud.aimJoystick.x;
+      const midXPercent = (moveX + aimX) / 2;
+      const splitX = (midXPercent / 100) * width;
+      
+      const isMoveZone = moveX < aimX ? (clientX < splitX) : (clientX > splitX);
       
       if (isMoveZone) {
         if (!moveJoystickRef.current.active) {
@@ -1355,6 +1360,11 @@ const Game = ({ roomData, settings }) => {
         aimJoystickRef.current.x = 0;
         aimJoystickRef.current.y = 0;
         setJoystickUI(prev => ({ ...prev, aim: { active: false, x: 0, y: 0, isFiring: false } }));
+        mobileShootRef.current = false;
+        shootTouchIdRef.current = null;
+      }
+
+      if (shootTouchIdRef.current === identifier) {
         mobileShootRef.current = false;
         shootTouchIdRef.current = null;
       }

@@ -506,12 +506,12 @@ function App() {
         {isEditingHUD && (
           <div className="hud-editor-overlay">
             <div className="hud-editor-header">
+
               <div className="hud-editor-title-group">
-                <h3>HUD CALIBRATION MODE</h3>
                 <p>DRAG ELEMENTS TO POSITION • PINCH / SCROLL TO SCALE</p>
               </div>
               <button onClick={() => setIsEditingHUD(false)} className="save-hud-btn">
-                SAVE & EXIT
+                SAVE
               </button>
             </div>
             
@@ -594,7 +594,7 @@ function App() {
                 );
               })}
             </div>
-            <div className="hud-editor-hint">DRAG TO POSITION • PINCH / SCROLL TO SCALE</div>
+
           </div>
         )}
 

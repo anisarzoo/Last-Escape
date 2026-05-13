@@ -14,7 +14,12 @@ import {
   Zap,
   ZapOff,
   Maximize,
-  Monitor
+  Monitor,
+  Layout,
+  Move,
+  MousePointer2,
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import './App.css';
 
@@ -46,14 +51,79 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('lastEscape_settings');
-    return saved ? JSON.parse(saved) : {
+    const defaults = {
       masterVolume: 0.7,
       musicEnabled: true,
       sfxEnabled: true,
       screenShakeEnabled: true,
-      particlesEnabled: true
+      particlesEnabled: true,
+      mouseSensitivity: 1.0,
+      mobileControls: {
+        fireMode: 'integrated',
+        layout: 'standard',
+        hud: {
+          moveJoystick: { x: 15, y: 70, scale: 1 },
+          aimJoystick: { x: 85, y: 70, scale: 1 },
+          dashBtn: { x: 92, y: 55, scale: 1 },
+          reloadBtn: { x: 92, y: 40, scale: 1 },
+          fireBtn: { x: 85, y: 30, scale: 1 }
+        }
+      }
     };
+    
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Deep merge mobileControls.hud if it exists, otherwise use defaults
+        return {
+          ...defaults,
+          ...parsed,
+          mobileControls: {
+            ...defaults.mobileControls,
+            ...(parsed.mobileControls || {}),
+            hud: {
+              ...defaults.mobileControls.hud,
+              ...(parsed.mobileControls?.hud || {})
+            }
+          },
+          keyBindings: {
+            ...defaults.keyBindings,
+            ...(parsed.keyBindings || {})
+          }
+        };
+      } catch (e) {
+        return defaults;
+      }
+    }
+    return defaults;
   });
+  const [activeSettingsCategory, setActiveSettingsCategory] = useState('visuals');
+  const [isEditingHUD, setIsEditingHUD] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [listeningFor, setListeningFor] = useState(null);
+
+  useEffect(() => {
+    if (!listeningFor) return;
+
+    const handleRemap = (e) => {
+      e.preventDefault();
+      setSettings(prev => ({
+        ...prev,
+        keyBindings: {
+          ...prev.keyBindings,
+          [listeningFor]: e.code
+        }
+      }));
+      setListeningFor(null);
+    };
+
+    window.addEventListener('keydown', handleRemap);
+    return () => window.removeEventListener('keydown', handleRemap);
+  }, [listeningFor]);
+  useEffect(() => {
+    const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0);
+    setIsMobileDevice(mobile);
+  }, []);
 
   // Persist player name
   useEffect(() => {
@@ -205,105 +275,281 @@ function App() {
 
         {/* Settings Modal */}
         <div className={`settings-modal-card ${showSettings ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
-          <div className="rules-header-row">
-            <h4>OPERATIONAL CONFIG</h4>
+          <div className="settings-header">
+            <h4>SETTINGS</h4>
             <button className="rules-close-btn" onClick={() => setShowSettings(false)}>&times;</button>
           </div>
-          <div className="settings-scroll-area">
-            <div className="settings-grid">
-              {/* Audio Section */}
-              <div className="settings-group">
-                <div className="settings-group-header">
-                  <Volume2 size={18} />
-                  <h5>Acoustics</h5>
-                </div>
-                <div className="settings-item">
-                  <div className="settings-item-info">
-                    <label>Master Volume</label>
-                    <span>{Math.round(settings.masterVolume * 100)}%</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="0" max="1" step="0.01" 
-                    value={settings.masterVolume} 
-                    onChange={(e) => setSettings({...settings, masterVolume: parseFloat(e.target.value)})}
-                  />
-                </div>
-                <div className="settings-toggle-row">
-                  <button 
-                    className={`toggle-btn ${settings.musicEnabled ? 'active' : ''}`}
-                    onClick={() => setSettings({...settings, musicEnabled: !settings.musicEnabled})}
-                  >
-                    {settings.musicEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                    Music
-                  </button>
-                  <button 
-                    className={`toggle-btn ${settings.sfxEnabled ? 'active' : ''}`}
-                    onClick={() => setSettings({...settings, sfxEnabled: !settings.sfxEnabled})}
-                  >
-                    {settings.sfxEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                    SFX
-                  </button>
-                </div>
-              </div>
+          
+          <div className="settings-nav">
+            <button 
+              className={`settings-nav-btn ${activeSettingsCategory === 'visuals' ? 'active' : ''}`}
+              onClick={() => setActiveSettingsCategory('visuals')}
+            >
+              VISUALS
+            </button>
+            <button 
+              className={`settings-nav-btn ${activeSettingsCategory === 'sound' ? 'active' : ''}`}
+              onClick={() => setActiveSettingsCategory('sound')}
+            >
+              SOUND
+            </button>
+            <button 
+              className={`settings-nav-btn ${activeSettingsCategory === 'controls' ? 'active' : ''}`}
+              onClick={() => setActiveSettingsCategory('controls')}
+            >
+              CONTROLS
+            </button>
+          </div>
 
-              {/* Visuals Section */}
-              <div className="settings-group">
-                <div className="settings-group-header">
-                  <Zap size={18} />
-                  <h5>Visual Feedback</h5>
+          <div className="settings-scroll-area">
+            <div className="settings-content-pane">
+              {activeSettingsCategory === 'sound' && (
+                <div className="settings-group-compact">
+                  <div className="settings-item-row">
+                    <div className="settings-info">
+                      <label>Master Volume</label>
+                      <span>{Math.round((settings.masterVolume ?? 0.7) * 100)}%</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0" max="1" step="0.01" 
+                      value={settings.masterVolume ?? 0.7} 
+                      onChange={(e) => setSettings({...settings, masterVolume: parseFloat(e.target.value)})}
+                    />
+                  </div>
+                  <div className="settings-toggle-flex">
+                    <button 
+                      className={`toggle-minimal ${settings.musicEnabled ? 'active' : ''}`}
+                      onClick={() => setSettings({...settings, musicEnabled: !settings.musicEnabled})}
+                    >
+                      {settings.musicEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                      MUSIC
+                    </button>
+                    <button 
+                      className={`toggle-minimal ${settings.sfxEnabled ? 'active' : ''}`}
+                      onClick={() => setSettings({...settings, sfxEnabled: !settings.sfxEnabled})}
+                    >
+                      {settings.sfxEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                      SFX
+                    </button>
+                  </div>
                 </div>
-                <div className="settings-toggle-grid">
-                  <div className="setting-control">
-                    <div className="control-label">
+              )}
+
+              {activeSettingsCategory === 'visuals' && (
+                <div className="settings-group-compact">
+                  <div className="compact-control-row">
+                    <div className="control-text">
                       <h6>Neural Vibration</h6>
-                      <p>Toggle screen shake intensity</p>
+                      <p>Screen shake effects</p>
                     </div>
                     <button 
-                      className={`switch-btn ${settings.screenShakeEnabled ? 'active' : ''}`}
+                      className={`switch-minimal ${settings.screenShakeEnabled ? 'active' : ''}`}
                       onClick={() => setSettings({...settings, screenShakeEnabled: !settings.screenShakeEnabled})}
                     >
-                      <div className="switch-thumb"></div>
+                      <div className="switch-dot"></div>
                     </button>
                   </div>
-                  <div className="setting-control">
-                    <div className="control-label">
+                  <div className="compact-control-row">
+                    <div className="control-text">
                       <h6>Particle Flux</h6>
-                      <p>Visual effects and debris</p>
+                      <p>Visual debris and effects</p>
                     </div>
                     <button 
-                      className={`switch-btn ${settings.particlesEnabled ? 'active' : ''}`}
+                      className={`switch-minimal ${settings.particlesEnabled ? 'active' : ''}`}
                       onClick={() => setSettings({...settings, particlesEnabled: !settings.particlesEnabled})}
                     >
-                      <div className="switch-thumb"></div>
+                      <div className="switch-dot"></div>
                     </button>
                   </div>
+                  <button 
+                    className="fullscreen-action-btn"
+                    onClick={() => {
+                      if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(() => {});
+                      } else {
+                        document.exitFullscreen();
+                      }
+                    }}
+                  >
+                    <Maximize size={14} />
+                    TOGGLE FULLSCREEN
+                  </button>
                 </div>
-              </div>
+              )}
 
-              {/* Display Section */}
-              <div className="settings-group">
-                <div className="settings-group-header">
-                  <Monitor size={18} />
-                  <h5>Interface</h5>
+              {activeSettingsCategory === 'controls' && (
+                <div className="settings-group-compact">
+                  {isMobileDevice ? (
+                    <>
+                      <div className="compact-control-row">
+                        <div className="control-text">
+                          <h6>Fire Mode</h6>
+                          <p>Integrated or Dedicated button</p>
+                        </div>
+                        <div className="mini-tab-switch">
+                          <button 
+                            className={settings.mobileControls.fireMode === 'integrated' ? 'active' : ''}
+                            onClick={() => setSettings({
+                              ...settings, 
+                              mobileControls: { ...settings.mobileControls, fireMode: 'integrated' }
+                            })}
+                          >
+                            INTG
+                          </button>
+                          <button 
+                            className={settings.mobileControls.fireMode === 'dedicated' ? 'active' : ''}
+                            onClick={() => setSettings({
+                              ...settings, 
+                              mobileControls: { ...settings.mobileControls, fireMode: 'dedicated' }
+                            })}
+                          >
+                            DEDIC
+                          </button>
+                        </div>
+                      </div>
+                      <div className="compact-control-row">
+                        <div className="control-text">
+                          <h6>Layout</h6>
+                          <p>Standard or Southpaw</p>
+                        </div>
+                        <div className="mini-tab-switch">
+                          <button 
+                            className={settings.mobileControls.layout === 'standard' ? 'active' : ''}
+                            onClick={() => setSettings({
+                              ...settings, 
+                              mobileControls: { ...settings.mobileControls, layout: 'standard' }
+                            })}
+                          >
+                            STD
+                          </button>
+                          <button 
+                            className={settings.mobileControls.layout === 'southpaw' ? 'active' : ''}
+                            onClick={() => setSettings({
+                              ...settings, 
+                              mobileControls: { ...settings.mobileControls, layout: 'southpaw' }
+                            })}
+                          >
+                            PAW
+                          </button>
+                        </div>
+                      </div>
+                      <button 
+                        className="hud-calibrate-btn"
+                        onClick={() => setIsEditingHUD(true)}
+                      >
+                        <Move size={16} />
+                        CUSTOMIZE HUD (DRAG & DROP)
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="settings-item-row">
+                        <div className="settings-info">
+                          <label>Mouse Sensitivity</label>
+                          <span>{(settings.mouseSensitivity ?? 1.0).toFixed(2)}x</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="0.2" max="3.0" step="0.1" 
+                          value={settings.mouseSensitivity ?? 1.0} 
+                          onChange={(e) => setSettings({...settings, mouseSensitivity: parseFloat(e.target.value)})}
+                        />
+                      </div>
+                      <div className="static-bindings-grid">
+                        {[
+                          { label: 'MOVE UP', key: 'up' },
+                          { label: 'MOVE DOWN', key: 'down' },
+                          { label: 'MOVE LEFT', key: 'left' },
+                          { label: 'MOVE RIGHT', key: 'right' },
+                          { label: 'DASH', key: 'dash' },
+                          { label: 'RELOAD', key: 'reload' }
+                        ].map(binding => (
+                          <div className="binding-item" key={binding.key}>
+                            <label>{binding.label}</label>
+                            <button 
+                              className={`binding-remap-btn ${listeningFor === binding.key ? 'listening' : ''}`}
+                              onClick={() => setListeningFor(binding.key)}
+                            >
+                              {listeningFor === binding.key ? 'PRESS ANY KEY' : (settings.keyBindings?.[binding.key]?.replace('Key', '') || 'SET')}
+                            </button>
+                          </div>
+                        ))}
+                        <div className="binding-item">
+                          <label>FIRE</label>
+                          <span className="static-key">MB1</span>
+                        </div>
+                      </div>
+                      <button 
+                        className="reset-defaults-btn"
+                        onClick={() => setSettings({
+                          ...settings,
+                          keyBindings: {
+                            up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD',
+                            dash: 'ShiftLeft', reload: 'KeyR'
+                          }
+                        })}
+                      >
+                        RESET TO DEFAULTS
+                      </button>
+                    </>
+                  )}
                 </div>
-                <button 
-                  className="fullscreen-btn"
-                  onClick={() => {
-                    if (!document.fullscreenElement) {
-                      document.documentElement.requestFullscreen().catch(() => {});
-                    } else {
-                      document.exitFullscreen();
-                    }
-                  }}
-                >
-                  <Maximize size={18} />
-                  Toggle Fullscreen
-                </button>
-              </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* HUD Editor Overlay */}
+        {isEditingHUD && (
+          <div className="hud-editor-overlay">
+            <div className="hud-editor-header">
+              <div className="hud-editor-title-group">
+                <h3>HUD CALIBRATION MODE</h3>
+                <p>DRAG ELEMENTS TO POSITION • PINCH TO SCALE (COMING SOON)</p>
+              </div>
+              <button onClick={() => setIsEditingHUD(false)} className="save-hud-btn">
+                SAVE & EXIT
+              </button>
+            </div>
+            
+            <div className="hud-editor-canvas">
+              {Object.entries(settings.mobileControls.hud).map(([key, pos]) => {
+                // Only show fireBtn if dedicated mode is on, or just show all for simplicity in editor
+                if (key === 'fireBtn' && settings.mobileControls.fireMode !== 'dedicated') return null;
+
+                return (
+                  <div 
+                    key={key}
+                    className={`hud-draggable-element ${key}`}
+                    style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                    onTouchMove={(e) => {
+                      const touch = e.touches[0];
+                      const newX = Math.max(5, Math.min(95, (touch.clientX / window.innerWidth) * 100));
+                      const newY = Math.max(5, Math.min(95, (touch.clientY / window.innerHeight) * 100));
+                      setSettings({
+                        ...settings,
+                        mobileControls: {
+                          ...settings.mobileControls,
+                          hud: {
+                            ...settings.mobileControls.hud,
+                            [key]: { ...pos, x: newX, y: newY }
+                          }
+                        }
+                      });
+                    }}
+                  >
+                    <div className="drag-handle">
+                      <Move size={16} />
+                      <span>{key.replace('Btn', '').replace('Joystick', '').toUpperCase()}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hud-editor-hint">DRAG ELEMENTS TO POSITION • PINCH TO SCALE (COMING SOON)</div>
+          </div>
+        )}
 
         {/* Rules Modal - Moved out of button for correct stacking context */}
         <div className={`rules-tooltip-card ${showRules ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>

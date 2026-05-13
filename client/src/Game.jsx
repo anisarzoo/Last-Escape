@@ -443,8 +443,14 @@ const Game = ({ roomData, settings }) => {
   }, [roomData]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => { keysRef.current[e.key] = true; };
-    const handleKeyUp = (e) => { keysRef.current[e.key] = false; };
+    const handleKeyDown = (e) => { 
+      keysRef.current[e.key] = true; 
+      keysRef.current[e.code] = true; 
+    };
+    const handleKeyUp = (e) => { 
+      keysRef.current[e.key] = false; 
+      keysRef.current[e.code] = false; 
+    };
     const handleMouseMove = (e) => {
       mousePosRef.current = { x: e.clientX, y: e.clientY };
     };
@@ -535,52 +541,50 @@ const Game = ({ roomData, settings }) => {
           createParticles(posRef.current.x, posRef.current.y, 'rgba(99, 102, 241, 0.4)', 2, 0.5, 0.5);
         }
 
-        if (keys['Shift'] && now - dashCooldownRef.current > 4000 && !isDashing) {
+        const dashBind = settings?.keyBindings?.dash || 'ShiftLeft';
+        if ((keys[dashBind] || keys['Shift']) && now - dashCooldownRef.current > 4000 && !isDashing) {
           dashTimeRef.current = now;
           dashCooldownRef.current = now;
           socket.emit('player-dash');
-          socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
-          keys['Shift'] = false;
         }
-
-        if (keys['r'] || keys['R']) {
+        const reloadBind = settings?.keyBindings?.reload || 'KeyR';
+        if (keys[reloadBind] || keys['r'] || keys['R']) {
           const lp = state.players.find(p => p.id === socket.id);
           if (lp && !lp.isReloading && lp.ammo < lp.maxAmmo && lp.reserveAmmo > 0) {
             socket.emit('player-reload');
           }
+          keys[reloadBind] = false;
           keys['r'] = false;
           keys['R'] = false;
         }
 
         let inputX = 0, inputY = 0;
-        // Check WASD and Arrows with robust key mapping
-        if (keys['w'] || keys['W'] || keys['ArrowUp'] || keys['Up']) inputY -= 1;
-        if (keys['s'] || keys['S'] || keys['ArrowDown'] || keys['Down']) inputY += 1;
-        if (keys['a'] || keys['A'] || keys['ArrowLeft'] || keys['Left']) inputX -= 1;
-        if (keys['d'] || keys['D'] || keys['ArrowRight'] || keys['Right']) inputX += 1;
+        const binds = settings?.keyBindings || {
+          up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', 
+          dash: 'ShiftLeft', reload: 'KeyR'
+        };
 
-        // --- KEYBOARD NORMALIZATION ---
-        // Prevents PC players from moving ~41% faster diagonally
+        if (keys[binds.up] || keys['ArrowUp'] || keys['Up']) inputY -= 1;
+        if (keys[binds.down] || keys['ArrowDown'] || keys['Down']) inputY += 1;
+        if (keys[binds.left] || keys['ArrowLeft'] || keys['Left']) inputX -= 1;
+        if (keys[binds.right] || keys['ArrowRight'] || keys['Right']) inputX += 1;
+
         if (inputX !== 0 && inputY !== 0) {
           const mag = Math.sqrt(inputX * inputX + inputY * inputY);
           inputX /= mag;
           inputY /= mag;
         }
 
-        // Only let the joystick override keyboard if it's actually being moved
         if (moveJoystickRef.current.active && (Math.abs(moveJoystickRef.current.x) > 0.1 || Math.abs(moveJoystickRef.current.y) > 0.1)) {
           inputX = moveJoystickRef.current.x;
           inputY = moveJoystickRef.current.y;
         }
 
-        // --- ANALYTIC PHYSICS INTEGRATION (v2) ---
-        // BASE_ACCEL increased to 0.92 to restore the "snappy" top speed on 144Hz
         const BASE_ACCEL = 0.92 * speedMultiplier;
         const CURRENT_FRICTION = isDashing ? 0.98 : 0.85;
         const k = -Math.log(CURRENT_FRICTION);
         const frictionDt = Math.pow(CURRENT_FRICTION, dt);
         
-        // We use a small epsilon for k to avoid division by zero
         const dragFactor = k > 0.0001 ? (1 - frictionDt) / k : dt;
         velRef.current.x = velRef.current.x * frictionDt + inputX * BASE_ACCEL * dragFactor;
         velRef.current.y = velRef.current.y * frictionDt + inputY * BASE_ACCEL * dragFactor;
@@ -616,10 +620,10 @@ const Game = ({ roomData, settings }) => {
           targetAngle = Math.atan2(mousePosRef.current.y - playerScreenY, mousePosRef.current.x - playerScreenX);
         }
 
-        const angleDiff = (targetAngle - aimAngleRef.current + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-        aimAngleRef.current += angleDiff * 0.4 * dt;
+        const angleDiff = targetAngle - aimAngleRef.current;
+        const sens = settings?.mouseSensitivity || 1.0;
+        aimAngleRef.current += angleDiff * 0.4 * sens * dt;
 
-        // Sub-stepping for collision (2 steps)
         const steps = 2;
         let px = posRef.current.x, py = posRef.current.y;
         const r = 14;
@@ -634,7 +638,6 @@ const Game = ({ roomData, settings }) => {
           const isCurrentlyInExit = curPts.some(p => currentMaze[Math.floor(p.y / TILE_SIZE)]?.[Math.floor(p.x / TILE_SIZE)] === 2);
           const isExitLocked = !state?.key?.carrierId || (state?.pickupLockoutRemaining > 0);
 
-          // Check X movement
           let canX = true;
           if (tx < -TILE_SIZE || tx > currentMazeWidth + TILE_SIZE) canX = false;
           if (canX) {
@@ -646,7 +649,6 @@ const Game = ({ roomData, settings }) => {
           }
           if (canX) px = tx; else velRef.current.x = 0;
 
-          // Check Y movement
           let canY = true;
           if (ty < -TILE_SIZE || ty > currentMazeHeight + TILE_SIZE) canY = false;
           if (canY) {
@@ -668,7 +670,11 @@ const Game = ({ roomData, settings }) => {
           }
         }
 
-        if ((keys[' '] || keys['MouseLeft'] || mobileShootRef.current) && now - shootCooldownRef.current > 500) {
+        const isDedicatedFire = settings?.mobileControls?.fireMode === 'dedicated';
+        const canShoot = (keys[' '] || keys['MouseLeft'] || mobileShootRef.current) && !isDedicatedFire;
+        const dedicatedShoot = mobileShootRef.current && isDedicatedFire;
+
+        if ((canShoot || dedicatedShoot) && now - shootCooldownRef.current > 500) {
           initAudio();
           socket.emit('player-shoot');
           muzzleFlashRef.current = now;
@@ -730,7 +736,6 @@ const Game = ({ roomData, settings }) => {
         }
         ctx.translate(camX, camY);
 
-        // 0. Lazy-render Offscreen Maze if needed
         if (!offscreenMazeCanvasRef.current && mazeRef.current) {
           const m = mazeRef.current;
           const canvas = document.createElement('canvas');
@@ -749,7 +754,6 @@ const Game = ({ roomData, settings }) => {
                 mCtx.fillStyle = '#451a03'; mCtx.fillRect(tx + 2, ty + 2, TILE_SIZE - 4, TILE_SIZE - 4);
                 mCtx.strokeStyle = '#f59e0b'; mCtx.lineWidth = 2; mCtx.strokeRect(tx + 4, ty + 4, TILE_SIZE - 8, TILE_SIZE - 8);
 
-                // Draw Cracks based on HP
                 const hp = (state.weakWallsHP && state.weakWallsHP[`${y},${x}`]) !== undefined ? state.weakWallsHP[`${y},${x}`] : 100;
                 if (hp < 100) {
                   mCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
@@ -761,7 +765,6 @@ const Game = ({ roomData, settings }) => {
                   mCtx.stroke();
                 }
               } else if (tile === 2) {
-                // Pre-render basic exit shape
                 mCtx.fillStyle = 'rgba(244, 63, 94, 0.1)';
                 mCtx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
               }
@@ -770,12 +773,10 @@ const Game = ({ roomData, settings }) => {
           offscreenMazeCanvasRef.current = canvas;
         }
 
-        // 1. Draw Maze Background (Bottom Layer)
         if (offscreenMazeCanvasRef.current) {
           const camX_val = smoothedCameraRef.current.x;
           const camY_val = smoothedCameraRef.current.y;
 
-          // Source clipping: only draw the visible portion
           const viewW = width, viewH = height;
           const sx = Math.max(0, camX_val - viewW / 2);
           const sy = Math.max(0, camY_val - viewH / 2);
@@ -786,7 +787,6 @@ const Game = ({ roomData, settings }) => {
           ctx.drawImage(offscreenMazeCanvasRef.current, sx, sy, sWidth, sHeight, dx, dy, sWidth, sHeight);
         }
 
-        // 2. Draw Zone
         if (state && !state.key.carrierId && state.zoneRadius < 2000) {
           ctx.save();
           ctx.strokeStyle = 'rgba(244, 63, 94, 0.3)'; ctx.lineWidth = 15; ctx.beginPath();
@@ -795,7 +795,6 @@ const Game = ({ roomData, settings }) => {
           ctx.restore();
         }
 
-        // 3. Draw Particles
         for (let i = particlesRef.current.length - 1; i >= 0; i--) {
           const p = particlesRef.current[i];
           p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.02 * dt;
@@ -804,7 +803,6 @@ const Game = ({ roomData, settings }) => {
           ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
         }
 
-        // 3.5 Draw Floating Numbers
         for (let i = floatingNumbersRef.current.length - 1; i >= 0; i--) {
           const fn = floatingNumbersRef.current[i];
           fn.x += fn.vx * dt;
@@ -819,7 +817,6 @@ const Game = ({ roomData, settings }) => {
         }
         ctx.globalAlpha = 1.0;
 
-        // Draw Dynamic Maze Elements (Exit Gate & Arena Lock)
         const activeMaze = loopMaze;
         const isArenaLocked = uiGameState?.exitLockoutRemaining > 0;
         
@@ -827,14 +824,12 @@ const Game = ({ roomData, settings }) => {
           row.forEach((tile, x) => {
             const tx = x * TILE_SIZE, ty = y * TILE_SIZE;
             
-            // Only render if visible (viewport clipping)
             const camX_val = smoothedCameraRef.current.x;
             const camY_val = smoothedCameraRef.current.y;
             if (tx < camX_val - width/2 - TILE_SIZE || tx > camX_val + width/2 || 
                 ty < camY_val - height/2 - TILE_SIZE || ty > camY_val + height/2) return;
 
             if (tile === 3 && isArenaLocked) {
-              // Draw "Locked" pulse on weak walls
               const pulse = (Math.sin(Date.now() / 300) + 1) / 2;
               ctx.strokeStyle = `rgba(147, 197, 253, ${0.3 + pulse * 0.4})`;
               ctx.lineWidth = 3;
@@ -873,7 +868,6 @@ const Game = ({ roomData, settings }) => {
             ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill();
           });
 
-          // 4.5 Draw Pickups
           if (state.pickups) {
             state.pickups.forEach(pick => {
               ctx.save();
@@ -889,22 +883,18 @@ const Game = ({ roomData, settings }) => {
                 ctx.fillRect(-2, -7, 4, 14);
                 ctx.fillRect(-7, -2, 14, 4);
               } else {
-                // Realistic Bullet Trio
                 ctx.shadowBlur = 15; ctx.shadowColor = '#fde047';
                 
                 const drawBullet = (ox) => {
                   ctx.save();
                   ctx.translate(ox, 0);
-                  // Casing (Brass)
                   ctx.fillStyle = '#d97706';
                   ctx.fillRect(-3, -2, 6, 12);
-                  // Projectile (Gold/Copper)
                   ctx.fillStyle = '#fde047';
                   ctx.beginPath();
                   ctx.moveTo(-3, -2);
                   ctx.quadraticCurveTo(0, -12, 3, -2);
                   ctx.fill();
-                  // Shine
                   ctx.strokeStyle = 'rgba(255,255,255,0.3)';
                   ctx.lineWidth = 1;
                   ctx.beginPath(); ctx.moveTo(-1, -4); ctx.lineTo(-1, -8); ctx.stroke();
@@ -940,7 +930,6 @@ const Game = ({ roomData, settings }) => {
             const px = isMe ? curX : (sp ? sp.x : p.x), py = isMe ? curY : (sp ? sp.y : p.y);
             const pAngle = isMe ? aimAngleRef.current : (p.aimAngle || 0);
             
-            // Stealth Handling: 100% invisible for others, 40% for self
             if (p.isStealth) {
               ctx.globalAlpha = isMe ? 0.4 : 0;
             } else {
@@ -963,20 +952,16 @@ const Game = ({ roomData, settings }) => {
 
             if (p.isCarryingKey) {
               const pulse = (Math.sin(Date.now() / 400) + 1) / 2;
-              
-              // Subtle radial glow behind player
               const auraGrad = ctx.createRadialGradient(0, 0, 16, 0, 0, 32);
               auraGrad.addColorStop(0, `rgba(251, 191, 36, ${0.2 + pulse * 0.1})`);
               auraGrad.addColorStop(1, 'rgba(251, 191, 36, 0)');
               ctx.fillStyle = auraGrad;
               ctx.beginPath(); ctx.arc(0, 0, 32, 0, Math.PI * 2); ctx.fill();
 
-              // Small key indicator inside character circle
               ctx.save();
               ctx.translate(0, 0);
               ctx.fillStyle = '#fbbf24';
               ctx.shadowBlur = 10; ctx.shadowColor = '#fbbf24';
-              // Draw a tiny key shape centered
               ctx.beginPath();
               ctx.arc(0, -4, 4, 0, Math.PI * 2);
               ctx.rect(-1, 0, 2, 8);
@@ -1027,12 +1012,11 @@ const Game = ({ roomData, settings }) => {
               }
             }
             ctx.restore();
-            ctx.globalAlpha = 1.0; // Reset for next player
+            ctx.globalAlpha = 1.0; 
           });
         }
         ctx.restore();
 
-        // Minimap Drawing
         const mCanvas = minimapCanvasRef.current;
         if (mCanvas && state) {
           const mCtx = mCanvas.getContext('2d');
@@ -1049,7 +1033,6 @@ const Game = ({ roomData, settings }) => {
           mCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
           mCtx.clearRect(0, 0, mSize, mSize);
 
-          // Pre-render Minimap Walls if needed
           if (!offscreenMinimapCanvasRef.current) {
             offscreenMinimapCanvasRef.current = document.createElement('canvas');
             offscreenMinimapCanvasRef.current.width = mSize * dpr;
@@ -1106,10 +1089,8 @@ const Game = ({ roomData, settings }) => {
               const meData = state.players.find(lp => lp.id === socket.id);
               const isTeammate = state.isTeamMode && p.teamId && meData && p.teamId === meData.teamId;
               
-              // Hide stealthy players from minimap unless it's yourself OR a teammate
               if (p.isStealth && !isMe && !isTeammate) return;
               
-              // Colors: Me (Blue), Teammate (Emerald), Enemy (Rose)
               if (isMe) mCtx.fillStyle = '#6366f1';
               else if (isTeammate) mCtx.fillStyle = '#10b981';
               else mCtx.fillStyle = '#f43f5e';
@@ -1143,14 +1124,13 @@ const Game = ({ roomData, settings }) => {
         offscreenMazeCanvasRef.current = null;
         offscreenMinimapCanvasRef.current = null;
 
-        if (type === 0) { // Wall destroyed
+        if (type === 0) {
           createParticles((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE, '#451a03', 20, 5, 2);
         }
       }
     });
 
     socket.on('game-state', (data) => {
-      // Invalidate offscreen maze if wall HP changed
       if (gameStateRef.current?.weakWallsHP && JSON.stringify(gameStateRef.current.weakWallsHP) !== JSON.stringify(data.weakWallsHP)) {
         offscreenMazeCanvasRef.current = null;
         offscreenMinimapCanvasRef.current = null;
@@ -1161,7 +1141,6 @@ const Game = ({ roomData, settings }) => {
 
       setUiGameState(data);
 
-      // Smooth Reload Animation Management
       data.players.forEach(p => {
         if (p.isReloading) {
           if (!reloadStartTimesRef.current[p.id]) {
@@ -1172,7 +1151,6 @@ const Game = ({ roomData, settings }) => {
         }
       });
 
-      // Kill Feed Logic
       if (prevPlayersRef.current) {
         data.players.forEach(p => {
           const prevP = prevPlayersRef.current[p.id];
@@ -1193,12 +1171,18 @@ const Game = ({ roomData, settings }) => {
       }
       prevPlayersRef.current = data.players.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
 
-      // Authoritative server sync for local player
       const serverMe = data.players.find(p => p.id === socket.id);
       if (serverMe) {
         const dist = Math.sqrt((posRef.current.x - serverMe.x) ** 2 + (posRef.current.y - serverMe.y) ** 2);
-        const isRecentlyDashed = Date.now() - dashTimeRef.current < 500;
-        if (dist > 150 && !isRecentlyDashed) {
+        const isDashing = Date.now() - dashTimeRef.current < 250;
+        const dashBind = settings?.keyBindings?.dash || 'ShiftLeft';
+        if ((keysRef.current[dashBind] || keysRef.current['Shift']) && !isDashing && Date.now() - dashCooldownRef.current > 4000 && !isEliminated) {
+          dashTimeRef.current = Date.now();
+          dashCooldownRef.current = Date.now();
+          socket.emit('player-dash');
+          socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
+        }
+        if (dist > 150 && !isDashing) {
           posRef.current = { x: serverMe.x, y: serverMe.y };
         }
       }
@@ -1252,30 +1236,53 @@ const Game = ({ roomData, settings }) => {
   const handleTouchStart = (e) => {
     if (!isMobileRef.current) return;
     initAudio();
-    const { width } = dimsRef.current;
+    const { width, height } = dimsRef.current;
+    const hud = settings?.mobileControls?.hud;
+    const isSouthpaw = settings?.mobileControls?.layout === 'southpaw';
+    const isDedicatedFire = settings?.mobileControls?.fireMode === 'dedicated';
+
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const { clientX, clientY } = touch;
 
-      // Left half = movement
-      if (clientX < width / 2) {
+      // Check Buttons First (Dash, Reload, Fire)
+      const checkBtn = (btnKey, radius = 50) => {
+        const btnPos = hud[btnKey];
+        if (!btnPos) return false;
+        const px = (btnPos.x / 100) * width;
+        const py = (btnPos.y / 100) * height;
+        const dist = Math.sqrt((clientX - px) ** 2 + (clientY - py) ** 2);
+        return dist < radius;
+      };
+
+      if (checkBtn('dashBtn')) {
+        handleMobileDash(e);
+        continue;
+      }
+      if (checkBtn('reloadBtn')) {
+        if (localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0) {
+          socket.emit('player-reload');
+        }
+        continue;
+      }
+      if (isDedicatedFire && checkBtn('fireBtn')) {
+        mobileShootRef.current = true;
+        shootTouchIdRef.current = touch.identifier;
+        continue;
+      }
+
+      // Joystick Logic (Split Screen fallback)
+      const isMoveZone = isSouthpaw ? (clientX > width / 2) : (clientX < width / 2);
+      
+      if (isMoveZone) {
         if (!moveJoystickRef.current.active) {
           moveJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
           setJoystickUI(prev => ({ ...prev, move: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY } }));
         }
-      }
-      // Right half = Floating Fire & Aiming
-      else {
+      } else {
         if (!aimJoystickRef.current.active) {
-          shootTouchIdRef.current = touch.identifier;
-          shootTouchStartRef.current = { x: clientX, y: clientY };
-
-          // Initialize aim joystick state (no firing yet)
           aimJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
           setJoystickUI(prev => ({ ...prev, aim: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY, isFiring: false } }));
-          
-          // We don't set mobileShootRef.current = true here.
-          // It will be set in handleTouchMove once the user drags beyond a threshold.
         }
       }
     }
@@ -1311,10 +1318,11 @@ const Game = ({ roomData, settings }) => {
         aimJoystickRef.current.curX = aimJoystickRef.current.startX + Math.cos(angle) * dist;
         aimJoystickRef.current.curY = aimJoystickRef.current.startY + Math.sin(angle) * dist;
 
-        // Firing Threshold: Only shoot if dragged beyond 15px
-        if (rawDist > 15) {
+        // Firing Threshold: Only shoot if dragged beyond 15px AND not in dedicated fire mode
+        const isDedicatedFire = settings?.mobileControls?.fireMode === 'dedicated';
+        if (rawDist > 15 && !isDedicatedFire) {
           mobileShootRef.current = true;
-        } else {
+        } else if (!isDedicatedFire) {
           mobileShootRef.current = false;
         }
 
@@ -1395,37 +1403,77 @@ const Game = ({ roomData, settings }) => {
 
       {isMobile && !isPortrait && !gameOver && (
         <div className="mobile-controls-layer">
-          <div className="mobile-controls right">
-            <button 
-              className={`mobile-btn dash-btn ${dashCDRemaining === 0 ? 'can-dash' : ''}`} 
-              onTouchStart={handleMobileDash}
-            >
-              <Wind size={24} />
-            </button>
+          {/* Dash Button */}
+          <button 
+            className={`mobile-btn dash-btn ${dashCDRemaining === 0 ? 'can-dash' : ''}`} 
+            onTouchStart={handleMobileDash}
+            style={{
+              position: 'fixed',
+              left: `${settings.mobileControls.hud.dashBtn.x}%`,
+              top: `${settings.mobileControls.hud.dashBtn.y}%`,
+              transform: 'translate(-50%, -50%)',
+              margin: 0
+            }}
+          >
+            <Wind size={24} />
+          </button>
 
+          {/* Reload Button */}
+          <button
+            className={`mobile-btn reload-btn ${localPlayer?.isReloading ? 'reloading' : ''} ${localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0 ? 'can-reload' : ''} ${localPlayer && localPlayer.ammo === 0 && localPlayer.reserveAmmo === 0 ? 'out-of-ammo' : ''}`}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              if (localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0) {
+                socket.emit('player-reload');
+              }
+            }}
+            style={{
+              position: 'fixed',
+              left: `${settings.mobileControls.hud.reloadBtn.x}%`,
+              top: `${settings.mobileControls.hud.reloadBtn.y}%`,
+              transform: 'translate(-50%, -50%)',
+              margin: 0
+            }}
+          >
+            <RotateCcw size={24} />
+          </button>
+
+          {/* Dedicated Fire Button */}
+          {settings.mobileControls.fireMode === 'dedicated' && (
             <button
-              className={`mobile-btn reload-btn ${localPlayer?.isReloading ? 'reloading' : ''} ${localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0 ? 'can-reload' : ''} ${localPlayer && localPlayer.ammo === 0 && localPlayer.reserveAmmo === 0 ? 'out-of-ammo' : ''}`}
-              onTouchStart={(e) => {
-
-
-                e.stopPropagation();
-                if (localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0) {
-                  socket.emit('player-reload');
-                }
+              className={`mobile-btn fire-btn ${mobileShootRef.current ? 'active' : ''}`}
+              style={{
+                position: 'fixed',
+                left: `${settings.mobileControls.hud.fireBtn.x}%`,
+                top: `${settings.mobileControls.hud.fireBtn.y}%`,
+                transform: 'translate(-50%, -50%)',
+                margin: 0,
+                width: '70px',
+                height: '70px',
+                background: mobileShootRef.current ? 'rgba(244, 63, 94, 0.4)' : 'rgba(244, 63, 94, 0.15)',
+                borderColor: 'var(--danger)',
+                boxShadow: mobileShootRef.current ? '0 0 20px rgba(244, 63, 94, 0.4)' : 'none'
               }}
-              style={{ marginTop: '10px' }}
             >
-              <RotateCcw size={24} />
+              <Zap size={30} color={mobileShootRef.current ? '#fff' : 'var(--danger)'} />
             </button>
+          )}
 
-          </div>
-
+          {/* Move Joystick Visual */}
           {joystickUI.move.active && (
-            <div className="joystick-base" style={{ left: joystickUI.move.x, top: joystickUI.move.y }}>
+            <div 
+              className="joystick-base" 
+              style={{ 
+                left: joystickUI.move.x, 
+                top: joystickUI.move.y,
+                // If not active, we could show a faint base at the settings coordinate
+              }}
+            >
               <div className="joystick-knob" style={{ transform: `translate(${joystickUI.move.curX - joystickUI.move.x}px, ${joystickUI.move.curY - joystickUI.move.y}px)` }} />
             </div>
           )}
 
+          {/* Aim Joystick Visual */}
           {joystickUI.aim.active && (
             <div
               className={`joystick-base ${joystickUI.aim.isFiring ? 'firing' : ''}`}
@@ -1439,6 +1487,40 @@ const Game = ({ roomData, settings }) => {
                 }}
               />
             </div>
+          )}
+
+          {/* Persistent Joystick Guides (faint circles where user set them) */}
+          {!joystickUI.move.active && (
+            <div 
+              className="joystick-guide" 
+              style={{ 
+                left: `${settings.mobileControls.hud.moveJoystick.x}%`, 
+                top: `${settings.mobileControls.hud.moveJoystick.y}%`,
+                opacity: 0.2,
+                position: 'fixed',
+                transform: 'translate(-50%, -50%)',
+                width: '100px',
+                height: '100px',
+                border: '2px solid #fff',
+                borderRadius: '50%'
+              }}
+            />
+          )}
+          {!joystickUI.aim.active && (
+            <div 
+              className="joystick-guide" 
+              style={{ 
+                left: `${settings.mobileControls.hud.aimJoystick.x}%`, 
+                top: `${settings.mobileControls.hud.aimJoystick.y}%`,
+                opacity: 0.2,
+                position: 'fixed',
+                transform: 'translate(-50%, -50%)',
+                width: '100px',
+                height: '100px',
+                border: '2px solid #fff',
+                borderRadius: '50%'
+              }}
+            />
           )}
         </div>
       )}

@@ -436,22 +436,22 @@ function App() {
                           <button 
                             className={settings.mobileControls.layout === 'standard' ? 'active' : ''}
                             onClick={() => {
-                              if (settings.mobileControls.layout === 'southpaw') {
-                                const move = settings.mobileControls.hud.moveJoystick;
-                                const aim = settings.mobileControls.hud.aimJoystick;
-                                setSettings({
-                                  ...settings,
-                                  mobileControls: {
-                                    ...settings.mobileControls,
-                                    layout: 'standard',
-                                    hud: {
-                                      ...settings.mobileControls.hud,
-                                      moveJoystick: { ...move, x: aim.x, y: aim.y },
-                                      aimJoystick: { ...aim, x: move.x, y: move.y }
-                                    }
-                                  }
-                                });
-                              }
+                              const move = settings.mobileControls.hud.moveJoystick;
+                              const aim = settings.mobileControls.hud.aimJoystick;
+                              const needsSwap = move.x > aim.x;
+                              
+                              setSettings({
+                                ...settings,
+                                mobileControls: {
+                                  ...settings.mobileControls,
+                                  layout: 'standard',
+                                  hud: needsSwap ? {
+                                    ...settings.mobileControls.hud,
+                                    moveJoystick: { ...move, x: aim.x, y: aim.y },
+                                    aimJoystick: { ...aim, x: move.x, y: move.y }
+                                  } : settings.mobileControls.hud
+                                }
+                              });
                             }}
                           >
                             STD
@@ -459,22 +459,22 @@ function App() {
                           <button 
                             className={settings.mobileControls.layout === 'southpaw' ? 'active' : ''}
                             onClick={() => {
-                              if (settings.mobileControls.layout === 'standard') {
-                                const move = settings.mobileControls.hud.moveJoystick;
-                                const aim = settings.mobileControls.hud.aimJoystick;
-                                setSettings({
-                                  ...settings,
-                                  mobileControls: {
-                                    ...settings.mobileControls,
-                                    layout: 'southpaw',
-                                    hud: {
-                                      ...settings.mobileControls.hud,
-                                      moveJoystick: { ...move, x: aim.x, y: aim.y },
-                                      aimJoystick: { ...aim, x: move.x, y: move.y }
-                                    }
-                                  }
-                                });
-                              }
+                              const move = settings.mobileControls.hud.moveJoystick;
+                              const aim = settings.mobileControls.hud.aimJoystick;
+                              const needsSwap = move.x < aim.x;
+
+                              setSettings({
+                                ...settings,
+                                mobileControls: {
+                                  ...settings.mobileControls,
+                                  layout: 'southpaw',
+                                  hud: needsSwap ? {
+                                    ...settings.mobileControls.hud,
+                                    moveJoystick: { ...move, x: aim.x, y: aim.y },
+                                    aimJoystick: { ...aim, x: move.x, y: move.y }
+                                  } : settings.mobileControls.hud
+                                }
+                              });
                             }}
                           >
                             PAW

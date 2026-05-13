@@ -2701,6 +2701,55 @@ button:disabled {
   padding: 0.25rem 0;
 }
 
+.label-with-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.info-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.info-toggle-btn:hover {
+  color: var(--primary);
+}
+
+.layout-info-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  background: #1e293b;
+  border: 1px solid var(--glass-border);
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  width: 200px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  color: #fff;
+  line-height: 1.5;
+  margin-top: 0.5rem;
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.layout-info-popover strong {
+  color: var(--primary);
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .control-text h6 {
   margin: 0;
   font-size: 0.7rem;

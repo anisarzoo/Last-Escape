@@ -19,7 +19,8 @@ import {
   Move,
   MousePointer2,
   Trash2,
-  RotateCcw
+  RotateCcw,
+  Info
 } from 'lucide-react';
 import './App.css';
 
@@ -49,6 +50,7 @@ function App() {
   const [selectedMode, setSelectedMode] = useState('ffa');
   const [showCreateOptions, setShowCreateOptions] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showLayoutInfo, setShowLayoutInfo] = useState(false);
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('lastEscape_settings');
     const defaults = {
@@ -412,7 +414,22 @@ function App() {
                       </div>
                       <div className="compact-control-row">
                         <div className="control-text">
-                          <h6>Layout</h6>
+                          <div className="label-with-info">
+                            <h6>Layout</h6>
+                            <button 
+                              className="info-toggle-btn"
+                              onClick={() => setShowLayoutInfo(!showLayoutInfo)}
+                              onBlur={() => setTimeout(() => setShowLayoutInfo(false), 200)}
+                            >
+                              <Info size={14} />
+                            </button>
+                            {showLayoutInfo && (
+                              <div className="layout-info-popover">
+                                <strong>Standard:</strong> Move (Left), Aim (Right)<br/>
+                                <strong>Southpaw:</strong> Move (Right), Aim (Left)
+                              </div>
+                            )}
+                          </div>
                           <p>Standard or Southpaw</p>
                         </div>
                         <div className="mini-tab-switch">

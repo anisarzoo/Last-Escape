@@ -435,19 +435,47 @@ function App() {
                         <div className="mini-tab-switch">
                           <button 
                             className={settings.mobileControls.layout === 'standard' ? 'active' : ''}
-                            onClick={() => setSettings({
-                              ...settings, 
-                              mobileControls: { ...settings.mobileControls, layout: 'standard' }
-                            })}
+                            onClick={() => {
+                              if (settings.mobileControls.layout === 'southpaw') {
+                                const move = settings.mobileControls.hud.moveJoystick;
+                                const aim = settings.mobileControls.hud.aimJoystick;
+                                setSettings({
+                                  ...settings,
+                                  mobileControls: {
+                                    ...settings.mobileControls,
+                                    layout: 'standard',
+                                    hud: {
+                                      ...settings.mobileControls.hud,
+                                      moveJoystick: { ...move, x: aim.x, y: aim.y },
+                                      aimJoystick: { ...aim, x: move.x, y: move.y }
+                                    }
+                                  }
+                                });
+                              }
+                            }}
                           >
                             STD
                           </button>
                           <button 
                             className={settings.mobileControls.layout === 'southpaw' ? 'active' : ''}
-                            onClick={() => setSettings({
-                              ...settings, 
-                              mobileControls: { ...settings.mobileControls, layout: 'southpaw' }
-                            })}
+                            onClick={() => {
+                              if (settings.mobileControls.layout === 'standard') {
+                                const move = settings.mobileControls.hud.moveJoystick;
+                                const aim = settings.mobileControls.hud.aimJoystick;
+                                setSettings({
+                                  ...settings,
+                                  mobileControls: {
+                                    ...settings.mobileControls,
+                                    layout: 'southpaw',
+                                    hud: {
+                                      ...settings.mobileControls.hud,
+                                      moveJoystick: { ...move, x: aim.x, y: aim.y },
+                                      aimJoystick: { ...aim, x: move.x, y: move.y }
+                                    }
+                                  }
+                                });
+                              }
+                            }}
                           >
                             PAW
                           </button>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { socket } from './socket';
 import Game from './Game';
 import { 
@@ -101,6 +101,8 @@ function App() {
   const [isEditingHUD, setIsEditingHUD] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [listeningFor, setListeningFor] = useState(null);
+  const pinchStartDistRef = useRef(null);
+  const pinchStartScaleRef = useRef(null);
 
   useEffect(() => {
     if (!listeningFor) return;
@@ -506,7 +508,7 @@ function App() {
             <div className="hud-editor-header">
               <div className="hud-editor-title-group">
                 <h3>HUD CALIBRATION MODE</h3>
-                <p>DRAG ELEMENTS TO POSITION • PINCH TO SCALE (COMING SOON)</p>
+                <p>DRAG ELEMENTS TO POSITION • PINCH / SCROLL TO SCALE</p>
               </div>
               <button onClick={() => setIsEditingHUD(false)} className="save-hud-btn">
                 SAVE & EXIT
@@ -522,21 +524,66 @@ function App() {
                   <div 
                     key={key}
                     className={`hud-draggable-element ${key}`}
-                    style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                    style={{ 
+                      left: `${pos.x}%`, 
+                      top: `${pos.y}%`,
+                      transform: `translate(-50%, -50%) scale(${pos.scale || 1})`
+                    }}
                     onTouchMove={(e) => {
-                      const touch = e.touches[0];
-                      const newX = Math.max(5, Math.min(95, (touch.clientX / window.innerWidth) * 100));
-                      const newY = Math.max(5, Math.min(95, (touch.clientY / window.innerHeight) * 100));
-                      setSettings({
-                        ...settings,
+                      if (e.touches.length === 2) {
+                        const t1 = e.touches[0];
+                        const t2 = e.touches[1];
+                        const dist = Math.sqrt(Math.pow(t2.clientX - t1.clientX, 2) + Math.pow(t2.clientY - t1.clientY, 2));
+                        
+                        if (pinchStartDistRef.current === null) {
+                          pinchStartDistRef.current = dist;
+                          pinchStartScaleRef.current = pos.scale || 1;
+                        } else {
+                          const delta = dist / pinchStartDistRef.current;
+                          const newScale = Math.max(0.5, Math.min(2.5, pinchStartScaleRef.current * delta));
+                          setSettings(prev => ({
+                            ...prev,
+                            mobileControls: {
+                              ...prev.mobileControls,
+                              hud: {
+                                ...prev.mobileControls.hud,
+                                [key]: { ...pos, scale: newScale }
+                              }
+                            }
+                          }));
+                        }
+                      } else {
+                        const touch = e.touches[0];
+                        const newX = Math.max(5, Math.min(95, (touch.clientX / window.innerWidth) * 100));
+                        const newY = Math.max(5, Math.min(95, (touch.clientY / window.innerHeight) * 100));
+                        setSettings({
+                          ...settings,
+                          mobileControls: {
+                            ...settings.mobileControls,
+                            hud: {
+                              ...settings.mobileControls.hud,
+                              [key]: { ...pos, x: newX, y: newY }
+                            }
+                          }
+                        });
+                      }
+                    }}
+                    onTouchEnd={() => {
+                      pinchStartDistRef.current = null;
+                    }}
+                    onWheel={(e) => {
+                      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+                      const newScale = Math.max(0.5, Math.min(2.5, (pos.scale || 1) + delta));
+                      setSettings(prev => ({
+                        ...prev,
                         mobileControls: {
-                          ...settings.mobileControls,
+                          ...prev.mobileControls,
                           hud: {
-                            ...settings.mobileControls.hud,
-                            [key]: { ...pos, x: newX, y: newY }
+                            ...prev.mobileControls.hud,
+                            [key]: { ...pos, scale: newScale }
                           }
                         }
-                      });
+                      }));
                     }}
                   >
                     <div className="drag-handle">
@@ -547,7 +594,7 @@ function App() {
                 );
               })}
             </div>
-            <div className="hud-editor-hint">DRAG ELEMENTS TO POSITION • PINCH TO SCALE (COMING SOON)</div>
+            <div className="hud-editor-hint">DRAG TO POSITION • PINCH / SCROLL TO SCALE</div>
           </div>
         )}
 

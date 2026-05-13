@@ -1411,7 +1411,7 @@ const Game = ({ roomData, settings }) => {
               position: 'fixed',
               left: `${settings.mobileControls.hud.dashBtn.x}%`,
               top: `${settings.mobileControls.hud.dashBtn.y}%`,
-              transform: 'translate(-50%, -50%)',
+              transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.dashBtn.scale || 1})`,
               margin: 0
             }}
           >
@@ -1431,7 +1431,7 @@ const Game = ({ roomData, settings }) => {
               position: 'fixed',
               left: `${settings.mobileControls.hud.reloadBtn.x}%`,
               top: `${settings.mobileControls.hud.reloadBtn.y}%`,
-              transform: 'translate(-50%, -50%)',
+              transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.reloadBtn.scale || 1})`,
               margin: 0
             }}
           >
@@ -1446,7 +1446,7 @@ const Game = ({ roomData, settings }) => {
                 position: 'fixed',
                 left: `${settings.mobileControls.hud.fireBtn.x}%`,
                 top: `${settings.mobileControls.hud.fireBtn.y}%`,
-                transform: 'translate(-50%, -50%)',
+                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.fireBtn.scale || 1})`,
                 margin: 0,
                 width: '70px',
                 height: '70px',
@@ -1466,7 +1466,7 @@ const Game = ({ roomData, settings }) => {
               style={{ 
                 left: joystickUI.move.x, 
                 top: joystickUI.move.y,
-                // If not active, we could show a faint base at the settings coordinate
+                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.moveJoystick.scale || 1})`
               }}
             >
               <div className="joystick-knob" style={{ transform: `translate(${joystickUI.move.curX - joystickUI.move.x}px, ${joystickUI.move.curY - joystickUI.move.y}px)` }} />
@@ -1477,7 +1477,11 @@ const Game = ({ roomData, settings }) => {
           {joystickUI.aim.active && (
             <div
               className={`joystick-base ${joystickUI.aim.isFiring ? 'firing' : ''}`}
-              style={{ left: joystickUI.aim.x, top: joystickUI.aim.y }}
+              style={{ 
+                left: joystickUI.aim.x, 
+                top: joystickUI.aim.y,
+                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.aimJoystick.scale || 1})`
+              }}
             >
               <div
                 className="joystick-knob"
@@ -1496,9 +1500,9 @@ const Game = ({ roomData, settings }) => {
               style={{ 
                 left: `${settings.mobileControls.hud.moveJoystick.x}%`, 
                 top: `${settings.mobileControls.hud.moveJoystick.y}%`,
+                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.moveJoystick.scale || 1})`,
                 opacity: 0.2,
                 position: 'fixed',
-                transform: 'translate(-50%, -50%)',
                 width: '100px',
                 height: '100px',
                 border: '2px solid #fff',
@@ -1512,9 +1516,9 @@ const Game = ({ roomData, settings }) => {
               style={{ 
                 left: `${settings.mobileControls.hud.aimJoystick.x}%`, 
                 top: `${settings.mobileControls.hud.aimJoystick.y}%`,
+                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.aimJoystick.scale || 1})`,
                 opacity: 0.2,
                 position: 'fixed',
-                transform: 'translate(-50%, -50%)',
                 width: '100px',
                 height: '100px',
                 border: '2px solid #fff',

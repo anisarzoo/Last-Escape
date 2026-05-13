@@ -33,8 +33,8 @@ const initAudio = () => {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 };
 
-const playSpatial = (x, y, type, listenerPos) => {
-  if (!audioCtx) return;
+const playSpatial = (x, y, type, listenerPos, masterVolume = 1.0, sfxEnabled = true) => {
+  if (!audioCtx || !sfxEnabled || masterVolume <= 0) return;
 
   const panner = audioCtx.createPanner();
   panner.panningModel = 'equalpower';
@@ -65,8 +65,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     filter.frequency.value = 1000;
     noise.connect(filter);
     filter.connect(gain);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    gain.gain.setValueAtTime(0.3 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.1);
     noise.start(now);
     noise.stop(now + 0.1);
   }
@@ -76,8 +76,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(150, now);
     osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.5, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    gain.gain.setValueAtTime(0.5 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.2);
     osc.start(now);
     osc.stop(now + 0.2);
   }
@@ -87,8 +87,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(440, now);
     osc.frequency.exponentialRampToValueAtTime(880, now + 0.4);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+    gain.gain.setValueAtTime(0.2 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.4);
     osc.start(now);
     osc.stop(now + 0.4);
   }
@@ -100,8 +100,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     filter.frequency.value = 1000;
     noise.connect(filter);
     filter.connect(gain);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    gain.gain.setValueAtTime(0.2 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.2);
     noise.start(now);
     noise.stop(now + 0.2);
   }
@@ -111,8 +111,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(100, now);
     osc.frequency.exponentialRampToValueAtTime(10, now + 1.5);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+    gain.gain.setValueAtTime(0.3 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 1.5);
     osc.start(now);
     osc.stop(now + 1.5);
   }
@@ -122,8 +122,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(800, now);
     osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    gain.gain.setValueAtTime(0.15 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.1);
     osc.start(now);
     osc.stop(now + 0.1);
   }
@@ -133,8 +133,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(100, now);
     osc.frequency.exponentialRampToValueAtTime(300, now + 0.2);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.4, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    gain.gain.setValueAtTime(0.4 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.2);
     osc.start(now);
     osc.stop(now + 0.2);
   }
@@ -144,8 +144,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(200, now);
     osc.frequency.linearRampToValueAtTime(400, now + 0.2);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    gain.gain.setValueAtTime(0.2 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.3);
     osc.start(now);
     osc.stop(now + 0.3);
   }
@@ -155,8 +155,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(400, now);
     osc.frequency.linearRampToValueAtTime(600, now + 0.1);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    gain.gain.setValueAtTime(0.3 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.2);
     osc.start(now);
     osc.stop(now + 0.2);
   }
@@ -166,8 +166,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(300, now);
     osc.frequency.exponentialRampToValueAtTime(900, now + 0.5);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.4, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+    gain.gain.setValueAtTime(0.4 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.5);
     osc.start(now);
     osc.stop(now + 0.5);
   }
@@ -177,8 +177,8 @@ const playSpatial = (x, y, type, listenerPos) => {
     osc.frequency.setValueAtTime(200, now);
     osc.frequency.linearRampToValueAtTime(300, now + 0.2);
     osc.connect(gain);
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    gain.gain.setValueAtTime(0.2 * masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01 * masterVolume, now + 0.2);
     osc.start(now);
     osc.stop(now + 0.2);
   }
@@ -202,7 +202,7 @@ const drawKey = (ctx, x, y, pulse) => {
   ctx.restore();
 };
 
-const Game = ({ roomData }) => {
+const Game = ({ roomData, settings }) => {
   const canvasRef = useRef(null);
   const minimapCanvasRef = useRef(null);
   const offscreenMazeCanvasRef = useRef(null);
@@ -370,6 +370,7 @@ const Game = ({ roomData }) => {
   }, []);
 
   const createParticles = (x, y, color, count = 10, speed = 2, life = 1) => {
+    if (settings && !settings.particlesEnabled) return;
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const s = Math.random() * speed;
@@ -386,10 +387,10 @@ const Game = ({ roomData }) => {
   useEffect(() => {
     initAudio();
     const handleSound = (data) => {
-      playSpatial(data.x, data.y, data.type, posRef.current);
+      playSpatial(data.x, data.y, data.type, posRef.current, settings?.masterVolume, settings?.sfxEnabled);
       if (data.type === 'hit') {
         createParticles(data.x, data.y, '#f43f5e', 12, 4);
-        screenShakeRef.current = Date.now();
+        if (settings?.screenShakeEnabled) screenShakeRef.current = Date.now();
       }
       if (data.type === 'shoot') createParticles(data.x, data.y, 'rgba(147, 197, 253, 0.5)', 3, 1, 0.2);
       if (data.type === 'dash') createParticles(data.x, data.y, '#6366f1', 15, 3);
@@ -397,7 +398,7 @@ const Game = ({ roomData }) => {
       if (data.type === 'ricochet') createParticles(data.x, data.y, '#fff', 6, 2, 0.3);
       if (data.type === 'dash-hit') {
         createParticles(data.x, data.y, '#a855f7', 20, 6, 0.8);
-        screenShakeRef.current = Date.now();
+        if (settings?.screenShakeEnabled) screenShakeRef.current = Date.now();
       }
     };
     socket.on('play-sound', handleSound);
@@ -410,7 +411,7 @@ const Game = ({ roomData }) => {
       if (data.id === socket.id) {
         velRef.current.x += data.vx;
         velRef.current.y += data.vy;
-        screenShakeRef.current = Date.now();
+        if (settings?.screenShakeEnabled) screenShakeRef.current = Date.now();
       }
     };
     socket.on('player-knockback', handleKnockback);

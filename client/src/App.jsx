@@ -8,7 +8,13 @@ import {
   Crown, 
   Copy, 
   Check,
-  HelpCircle
+  HelpCircle,
+  Volume2,
+  VolumeX,
+  Zap,
+  ZapOff,
+  Maximize,
+  Monitor
 } from 'lucide-react';
 import './App.css';
 
@@ -37,6 +43,17 @@ function App() {
   const [error, setError] = useState('');
   const [selectedMode, setSelectedMode] = useState('ffa');
   const [showCreateOptions, setShowCreateOptions] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem('lastEscape_settings');
+    return saved ? JSON.parse(saved) : {
+      masterVolume: 0.7,
+      musicEnabled: true,
+      sfxEnabled: true,
+      screenShakeEnabled: true,
+      particlesEnabled: true
+    };
+  });
 
   // Persist player name
   useEffect(() => {
@@ -44,6 +61,11 @@ function App() {
       localStorage.setItem('lastEscape_playerName', playerName);
     }
   }, [playerName]);
+
+  // Persist settings
+  useEffect(() => {
+    localStorage.setItem('lastEscape_settings', JSON.stringify(settings));
+  }, [settings]);
 
   useEffect(() => {
     function onRoomUpdate(data) {
@@ -159,8 +181,129 @@ function App() {
           <HelpCircle size={24} />
         </div>
 
-        {/* Global Click Handler to close rules */}
-        {showRules && <div className="rules-backdrop" onClick={() => setShowRules(false)}></div>}
+        {/* Floating Settings Button */}
+        <div 
+          className={`settings-floating-btn ${showSettings ? 'active' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowSettings(!showSettings);
+          }}
+        >
+          <Settings size={24} />
+        </div>
+
+        {/* Global Click Handler to close modals */}
+        {(showRules || showSettings) && (
+          <div 
+            className="rules-backdrop" 
+            onClick={() => {
+              setShowRules(false);
+              setShowSettings(false);
+            }}
+          ></div>
+        )}
+
+        {/* Settings Modal */}
+        <div className={`settings-modal-card ${showSettings ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
+          <div className="rules-header-row">
+            <h4>OPERATIONAL CONFIG</h4>
+            <button className="rules-close-btn" onClick={() => setShowSettings(false)}>&times;</button>
+          </div>
+          <div className="settings-scroll-area">
+            <div className="settings-grid">
+              {/* Audio Section */}
+              <div className="settings-group">
+                <div className="settings-group-header">
+                  <Volume2 size={18} />
+                  <h5>Acoustics</h5>
+                </div>
+                <div className="settings-item">
+                  <div className="settings-item-info">
+                    <label>Master Volume</label>
+                    <span>{Math.round(settings.masterVolume * 100)}%</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" max="1" step="0.01" 
+                    value={settings.masterVolume} 
+                    onChange={(e) => setSettings({...settings, masterVolume: parseFloat(e.target.value)})}
+                  />
+                </div>
+                <div className="settings-toggle-row">
+                  <button 
+                    className={`toggle-btn ${settings.musicEnabled ? 'active' : ''}`}
+                    onClick={() => setSettings({...settings, musicEnabled: !settings.musicEnabled})}
+                  >
+                    {settings.musicEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                    Music
+                  </button>
+                  <button 
+                    className={`toggle-btn ${settings.sfxEnabled ? 'active' : ''}`}
+                    onClick={() => setSettings({...settings, sfxEnabled: !settings.sfxEnabled})}
+                  >
+                    {settings.sfxEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                    SFX
+                  </button>
+                </div>
+              </div>
+
+              {/* Visuals Section */}
+              <div className="settings-group">
+                <div className="settings-group-header">
+                  <Zap size={18} />
+                  <h5>Visual Feedback</h5>
+                </div>
+                <div className="settings-toggle-grid">
+                  <div className="setting-control">
+                    <div className="control-label">
+                      <h6>Neural Vibration</h6>
+                      <p>Toggle screen shake intensity</p>
+                    </div>
+                    <button 
+                      className={`switch-btn ${settings.screenShakeEnabled ? 'active' : ''}`}
+                      onClick={() => setSettings({...settings, screenShakeEnabled: !settings.screenShakeEnabled})}
+                    >
+                      <div className="switch-thumb"></div>
+                    </button>
+                  </div>
+                  <div className="setting-control">
+                    <div className="control-label">
+                      <h6>Particle Flux</h6>
+                      <p>Visual effects and debris</p>
+                    </div>
+                    <button 
+                      className={`switch-btn ${settings.particlesEnabled ? 'active' : ''}`}
+                      onClick={() => setSettings({...settings, particlesEnabled: !settings.particlesEnabled})}
+                    >
+                      <div className="switch-thumb"></div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Display Section */}
+              <div className="settings-group">
+                <div className="settings-group-header">
+                  <Monitor size={18} />
+                  <h5>Interface</h5>
+                </div>
+                <button 
+                  className="fullscreen-btn"
+                  onClick={() => {
+                    if (!document.fullscreenElement) {
+                      document.documentElement.requestFullscreen().catch(() => {});
+                    } else {
+                      document.exitFullscreen();
+                    }
+                  }}
+                >
+                  <Maximize size={18} />
+                  Toggle Fullscreen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Rules Modal - Moved out of button for correct stacking context */}
         <div className={`rules-tooltip-card ${showRules ? 'active' : ''}`} onClick={(e) => e.stopPropagation()}>
@@ -540,7 +683,7 @@ function App() {
           <div className="rotate-hint-mobile">Please rotate your device manually</div>
         )}
       </div>
-      <Game roomData={roomData} playerName={playerName} />
+      <Game roomData={roomData} playerName={playerName} settings={settings} />
     </div>
   );
 }

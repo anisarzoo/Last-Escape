@@ -8,7 +8,8 @@ import {
   Zap,
   Crosshair,
   Key,
-  RotateCcw
+  RotateCcw,
+  Settings
 } from 'lucide-react';
 
 
@@ -202,7 +203,7 @@ const drawKey = (ctx, x, y, pulse) => {
   ctx.restore();
 };
 
-const Game = ({ roomData, settings }) => {
+const Game = ({ roomData, settings, onOpenSettings }) => {
   const canvasRef = useRef(null);
   const minimapCanvasRef = useRef(null);
   const offscreenMazeCanvasRef = useRef(null);
@@ -1550,7 +1551,6 @@ const Game = ({ roomData, settings }) => {
 
       {/* Low HP Vignette */}
       <div className={`low-hp-vignette ${(localPlayer?.hp > 0 && localPlayer?.hp < 30) ? 'active' : ''}`} />
-
       {/* In-Game UI Layer */}
       {!gameOver && (
         <div className="ingame-ui-layer">
@@ -1577,6 +1577,9 @@ const Game = ({ roomData, settings }) => {
             <div className="hud-container">
               <div className="hud-header">
                 <div className="hud-player-info">
+                  <div className="ingame-settings-btn" onClick={onOpenSettings} title="Mission Settings">
+                    <Settings size={16} />
+                  </div>
                   <span className="hud-player-name">{localPlayer.name.toUpperCase()}</span>
                 </div>
                 <div className={`hud-dash-indicator ${dashCDRemaining > 0 ? 'cooldown' : ''}`}>
@@ -1697,18 +1700,29 @@ const Game = ({ roomData, settings }) => {
                     <th>AGENT</th>
                     {hasTeamsInSummary && <th>TEAM</th>}
                     <th>KILLS</th>
+                    <th>DAMAGE</th>
+                    <th>HEALING</th>
                     <th>HOLD TIME</th>
+                    <th>ELIMINATED BY</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {gameOver.stats?.sort((a, b) => b.score - a.score).map((s, i) => (
-                    <tr key={i} className={s.isWinner ? 'winner-row' : ''}>
-                      <td>{s.name.toUpperCase()} {s.isWinner ? '(WINNER)' : ''}</td>
-                      {hasTeamsInSummary && <td>{s.teamId ? `TEAM ${s.teamId}` : '-'}</td>}
-                      <td>{s.score}</td>
-                      <td>{s.holdTime}s</td>
-                    </tr>
-                  ))}
+                  {gameOver.stats?.sort((a, b) => b.score - a.score).map((s, i) => {
+                    const killerName = s.killedBy === 'ZONE' ? 'THE DEADLY ZONE' 
+                      : (s.killedBy ? (gameOver.stats.find(p => p.id === s.killedBy)?.name?.toUpperCase() || 'UNKNOWN') : '-');
+                    
+                    return (
+                      <tr key={i} className={s.isWinner ? 'winner-row' : ''}>
+                        <td>{s.name.toUpperCase()} {s.isWinner ? '(WINNER)' : ''}</td>
+                        {hasTeamsInSummary && <td>{s.teamId ? `TEAM ${s.teamId}` : '-'}</td>}
+                        <td>{s.score}</td>
+                        <td>{s.damageDealt || 0}</td>
+                        <td>{s.healthGained || 0}</td>
+                        <td>{s.holdTime}s</td>
+                        <td style={{ color: s.killedBy === 'ZONE' ? 'var(--danger)' : 'inherit' }}>{killerName}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

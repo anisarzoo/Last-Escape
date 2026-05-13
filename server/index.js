@@ -154,9 +154,13 @@ function applyElimination(room, victim, killerId) {
       killer.score += 1;
       killer.range = Math.min(8, killer.range + 1);
       victim.killedBy = killer.id;
+      const oldHp1 = killer.hp;
       killer.hp = Math.min(100, killer.hp + 15);
+      killer.healthGained += (killer.hp - oldHp1);
       if (wasCarrier) {
+        const oldHp2 = killer.hp;
         killer.hp = Math.min(100, killer.hp + 30);
+        killer.healthGained += (killer.hp - oldHp2);
       }
     } else {
       victim.killedBy = 'ZONE';
@@ -260,7 +264,10 @@ io.on('connection', (socket) => {
       maxAmmo: 6,
       reserveAmmo: 12,
       isReloading: false,
-      lastReloadTime: 0
+      lastReloadTime: 0,
+      damageDealt: 0,
+      healthGained: 0,
+      killedBy: null
     };
 
     room.players.push(socket.id);
@@ -310,8 +317,10 @@ io.on('connection', (socket) => {
           p.ammo = 6;
           p.reserveAmmo = 12;
           p.isReloading = false;
-          p.killedBy = null;
           p.isStealth = false;
+          p.damageDealt = 0;
+          p.healthGained = 0;
+          p.killedBy = null;
         }
       });
 
@@ -467,7 +476,9 @@ io.on('connection', (socket) => {
 
           const dist = Math.sqrt((player.x - target.x)**2 + (player.y - target.y)**2);
           if (dist < 40) { // Collision radius
-            target.hp -= 10;
+            const dmg = 10;
+            target.hp -= dmg;
+            player.damageDealt += dmg;
             if (target.hp <= 0) {
               applyElimination(room, target, socket.id);
             }
@@ -796,6 +807,8 @@ function updateRoom(roomId) {
       if (dist < 20) {
         const damage = p.isCarryingKey ? 18 : 20;
         p.hp -= damage;
+        const shooter = players[b.ownerId];
+        if (shooter) shooter.damageDealt += damage;
         
         // Apply Knockback (Pure Velocity)
         const kbForce = 10;
@@ -830,7 +843,9 @@ function updateRoom(roomId) {
         const dist = Math.sqrt((p.x - pick.x)**2 + (p.y - pick.y)**2);
         if (dist < 30) {
           if (pick.type === 'health' && p.hp < 100) {
+            const oldHp = p.hp;
             p.hp = Math.min(100, p.hp + 30);
+            p.healthGained += (p.hp - oldHp);
             room.pickups.splice(i, 1);
             io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'pickup-health' });
             break;
@@ -969,9 +984,13 @@ function endGame(room, winner) {
     winner: getWinnerLabel(room, winner),
     winnerTeamId,
     stats: roomPlayers.map((p) => ({
+      id: p.id,
       name: p.name,
       teamId: p.teamId || null,
       score: p.score,
+      damageDealt: Math.round(p.damageDealt || 0),
+      healthGained: Math.round(p.healthGained || 0),
+      killedBy: p.killedBy,
       holdTime: Math.floor(p.totalKeyHoldTime || 0),
       isWinner: room.isTeamMode ? (p.teamId === winnerTeamId && winnerTeamId !== null) : p.id === winner?.id
     }))

@@ -1563,7 +1563,8 @@ button:disabled {
 
 .match-stats th:first-child,
 .match-stats td:first-child {
-  width: 40%;
+  text-align: left;
+  padding-left: 2.5rem;
 }
 
 .match-stats td {
@@ -1773,7 +1774,9 @@ button:disabled {
 
 .hud-player-info {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .hud-player-name {
@@ -3086,3 +3089,67 @@ button:disabled {
   transform: translateY(-2px);
 }
 
+
+/* In-game Settings Toggle (Integrated into HUD) */
+.hud-container .ingame-settings-btn {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0.4;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hud-container .ingame-settings-btn:hover {
+  opacity: 1;
+  transform: rotate(90deg) scale(1.1);
+  color: var(--primary);
+}
+
+/* Settings Modal Footer Actions */
+.settings-footer-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.quit-game-btn {
+  width: 100%;
+  padding: 0.85rem !important;
+  background: rgba(244, 63, 94, 0.1) !important;
+  border: 1px solid rgba(244, 63, 94, 0.2) !important;
+  color: #fb7185 !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.1rem !important;
+  border-radius: 1rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease !important;
+}
+
+.quit-game-btn:hover {
+  background: rgba(244, 63, 94, 0.2) !important;
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -5px rgba(244, 63, 94, 0.3);
+}
+
+.quit-game-btn:active {
+  transform: translateY(0);
+}
+
+/* Ensure settings modal is above everything */
+.settings-modal-card {
+  z-index: 2000;
+}
+
+.rules-backdrop {
+  z-index: 1999;
+}

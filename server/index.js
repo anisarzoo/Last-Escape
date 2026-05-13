@@ -322,6 +322,20 @@ io.on('connection', (socket) => {
     const player = players[socket.id];
     const room = rooms[player?.roomId];
     if (player && player.hp > 0 && room && room.gameStarted) {
+      // Validate input: clamp to max plausible movement per tick
+      const MAX_MOVE_PER_TICK = 25; // generous cap for dash + lag compensation
+      const dx = movement.x - player.x;
+      const dy = movement.y - player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > MAX_MOVE_PER_TICK) {
+        // Clamp to max speed in the attempted direction
+        const scale = MAX_MOVE_PER_TICK / dist;
+        movement.x = player.x + dx * scale;
+        movement.y = player.y + dy * scale;
+      }
+      // Bounds check
+      movement.x = Math.max(-TILE_SIZE, Math.min(MAZE_WIDTH + TILE_SIZE, movement.x));
+      movement.y = Math.max(-TILE_SIZE, Math.min(MAZE_HEIGHT + TILE_SIZE, movement.y));
       // Sub-stepping for collision (2 steps)
       const steps = 2;
       let canMove = true;
@@ -789,7 +803,7 @@ function updateRoom(roomId) {
         p.stealthStartTime = now;
         room.key.carrierId = pId;
         room.lastKeyUpdate = now;
-        room.keyPickupTime = now; // Start the 30s exit wall cooldown
+        room.keyPickupTime = now; // Start the 60s exit gate lockdown
         io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'pickup' });
         break;
       }
@@ -850,8 +864,8 @@ function updateRoom(roomId) {
     }
   }
 
-      // Zone Damage (Legacy, only applies if outside zone)
-  for (const pId of room.players) {
+    // Zone Damage (only applies if outside zone)
+    for (const pId of room.players) {
     const p = players[pId];
     if (!p || p.hp <= 0) continue;
 

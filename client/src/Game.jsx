@@ -1,9 +1,8 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { socket } from './socket';
-import { MAZE_MAP, TILE_SIZE, MAZE_WIDTH, MAZE_HEIGHT } from './constants';
+import { MAZE_MAP, TILE_SIZE } from './constants';
 import {
   Skull,
-  Target,
   Activity,
   Wind,
   Zap,
@@ -231,7 +230,7 @@ const Game = ({ roomData }) => {
       });
     }, 2000);
     return () => clearInterval(interval);
-  }, [socket]);
+  }, []);
 
   // --- SCREEN WAKE LOCK ---
   useEffect(() => {
@@ -242,7 +241,7 @@ const Game = ({ roomData }) => {
           wakeLock = await navigator.wakeLock.request('screen');
           console.log('Operational Status: Screen Wake Lock Active');
         }
-      } catch (err) {
+      } catch {
         // Silently fail if wake lock is denied or unsupported
       }
     };
@@ -283,17 +282,14 @@ const Game = ({ roomData }) => {
   const particlesRef = useRef([]);
   const floatingNumbersRef = useRef([]);
   const lastEmitTimeRef = useRef(0);
-  const lastMoveEmitTimeRef = useRef(0);
   const velRef = useRef({ x: 0, y: 0 });
   const reloadStartTimesRef = useRef({});
   const smoothedPlayersRef = useRef({});
   const smoothedCameraRef = useRef({ x: TILE_SIZE * 0.5, y: TILE_SIZE * 0.5 });
   const localBulletsRef = useRef([]);
-  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const dimsRef = useRef({ width: window.innerWidth, height: window.innerHeight });
   const [isMobile, setIsMobile] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
-  const [muzzleFlash, setMuzzleFlash] = useState(false);
 
   // Joystick state (using refs for physics/logic, state for UI)
   const moveJoystickRef = useRef({ active: false, x: 0, y: 0, startX: 0, startY: 0, curX: 0, curY: 0 });
@@ -335,14 +331,17 @@ const Game = ({ roomData }) => {
   }, [uiGameState, isTeamMode, localPlayer, roomData]);
 
   // Auto-switch to teammate upon death in Team Mode
+  const shouldAutoSpectate = isEliminated && isTeamMode && !gameOver && !spectateTargetId && spectateCandidates.length > 0;
   useEffect(() => {
-    if (isEliminated && isTeamMode && !gameOver && !spectateTargetId) {
-      if (spectateCandidates.length > 0) {
-        setSpectateTargetId(spectateCandidates[0].id);
-        setIsSpectating(true);
-      }
-    }
-  }, [isEliminated, isTeamMode, gameOver, spectateCandidates, spectateTargetId]);
+    if (!shouldAutoSpectate) return;
+    // Use a microtask to avoid synchronous setState within the effect body
+    const id = requestAnimationFrame(() => {
+      setSpectateTargetId(spectateCandidates[0].id);
+      setIsSpectating(true);
+    });
+    return () => cancelAnimationFrame(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldAutoSpectate]);
 
   const spectateTarget = useMemo(() => {
     if (spectateCandidates.length === 0) return null;
@@ -352,7 +351,6 @@ const Game = ({ roomData }) => {
   useEffect(() => {
     const handleResize = () => {
       const w = window.innerWidth, h = window.innerHeight;
-      setDimensions({ width: w, height: h });
       dimsRef.current = { width: w, height: h };
       setIsPortrait(h > w);
       const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 0);
@@ -783,25 +781,27 @@ const Game = ({ roomData }) => {
         }
 
         // 3. Draw Particles
-        particlesRef.current.forEach((p, i) => {
+        for (let i = particlesRef.current.length - 1; i >= 0; i--) {
+          const p = particlesRef.current[i];
           p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.02 * dt;
-          if (p.life <= 0) { particlesRef.current.splice(i, 1); return; }
+          if (p.life <= 0) { particlesRef.current.splice(i, 1); continue; }
           ctx.globalAlpha = p.life / p.maxLife; ctx.fillStyle = p.color;
           ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
-        });
+        }
 
         // 3.5 Draw Floating Numbers
-        floatingNumbersRef.current.forEach((fn, i) => {
+        for (let i = floatingNumbersRef.current.length - 1; i >= 0; i--) {
+          const fn = floatingNumbersRef.current[i];
           fn.x += fn.vx * dt;
           fn.y += fn.vy * dt;
           fn.life -= 0.02 * dt;
-          if (fn.life <= 0) { floatingNumbersRef.current.splice(i, 1); return; }
+          if (fn.life <= 0) { floatingNumbersRef.current.splice(i, 1); continue; }
           ctx.globalAlpha = fn.life;
           ctx.fillStyle = '#f43f5e';
           ctx.font = '900 18px Outfit';
           ctx.textAlign = 'center';
           ctx.fillText(`-${fn.amount}`, fn.x, fn.y);
-        });
+        }
         ctx.globalAlpha = 1.0;
 
         // Draw Dynamic Maze Elements (Exit Gate & Arena Lock)
@@ -993,7 +993,7 @@ const Game = ({ roomData }) => {
             if (!isMe && !p.isStealth) {
               const barW = 44, barH = 6;
               ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-barW / 2, -38, barW, barH);
-              ctx.fillStyle = p.hp > 30 ? (isTeammate ? '#10b981' : '#10b981') : '#f43f5e'; 
+              ctx.fillStyle = p.hp > 30 ? (isTeammate ? '#10b981' : '#22c55e') : '#f43f5e'; 
               ctx.fillRect(-barW / 2, -38, (p.hp / 100) * barW, barH);
               
               ctx.fillStyle = isTeammate ? '#10b981' : '#fff';
@@ -1214,6 +1214,7 @@ const Game = ({ roomData }) => {
     return () => {
       cancelAnimationFrame(loopId);
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
@@ -1221,9 +1222,9 @@ const Game = ({ roomData }) => {
       socket.off('game-state');
       socket.off('game-over');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomData, spectateTargetId, isSpectating]);
 
-  const isKeyCarrier = uiGameState?.key.carrierId === socket.id;
   const hasTeamsInSummary = Boolean(gameOver?.stats?.some((s) => s.teamId));
 
   const handleTouchStart = (e) => {

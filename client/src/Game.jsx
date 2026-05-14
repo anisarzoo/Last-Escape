@@ -681,11 +681,11 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
             // Huge discrepancy (teleport/respawn) - Hard snap
             px = x; py = y;
             reconciliationRef.current = null;
-          } else if (dist > 1) {
-            // Soft pull towards server position (10% per frame)
-            // This prevents the 'rubber band' snap feeling
-            px += (x - px) * 0.1;
-            py += (y - py) * 0.1;
+          } else if (dist > 5) {
+            // Soft pull towards server position (30% per frame)
+            // Increased from 10% to 30% and threshold to 5 to prevent 'equilibrium sticking' against movement input
+            px += (x - px) * 0.3;
+            py += (y - py) * 0.3;
           } else {
             reconciliationRef.current = null;
           }
@@ -1237,9 +1237,10 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
     });
     
     socket.on('position-correction', (data) => {
-      // Store the correction to be applied smoothly in the game loop
-      // We no longer zero out velocity here to prevent the 'freeze' effect
-      reconciliationRef.current = { x: data.x, y: data.y };
+      // Hard snap for explicit server corrections (e.g. hitting walls)
+      // We don't zero out velocity (velRef) so the player doesn't 'freeze', they just slide off the wall
+      posRef.current = { x: data.x, y: data.y };
+      reconciliationRef.current = null;
     });
 
     return () => {

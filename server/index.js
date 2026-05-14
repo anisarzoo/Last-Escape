@@ -385,8 +385,9 @@ io.on('connection', (socket) => {
     const player = players[socket.id];
     const room = rooms[player?.roomId];
     if (player && player.hp > 0 && room && room.gameStarted) {
-      // Validate input: clamp to max plausible movement per tick
-      const MAX_MOVE_PER_TICK = 25; // generous cap for dash + lag compensation
+      // Validate input: clamp to max plausible movement per tick (Anti-speedhack)
+      // Increased from 25 to 100 to prevent legitimate dashes + network jitter from causing 'freezes'
+      const MAX_MOVE_PER_TICK = player.isDashing ? 120 : 60;
       const dx = movement.x - player.x;
       const dy = movement.y - player.y;
       const dist = Math.sqrt(dx * dx + dy * dy);

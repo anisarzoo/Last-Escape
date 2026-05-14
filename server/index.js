@@ -459,7 +459,11 @@ io.on('connection', (socket) => {
       } else {
         player.x = finalX;
         player.y = finalY;
-        socket.emit('position-correction', { x: player.x, y: player.y });
+        // Only correct if discrepancy is significant (>40px) to avoid jitter on lag
+        const dist = Math.sqrt((player.x - movement.x)**2 + (player.y - movement.y)**2);
+        if (dist > 40) {
+          socket.emit('position-correction', { x: player.x, y: player.y });
+        }
       }
       
       // Dash Collision Check

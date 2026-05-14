@@ -272,6 +272,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
   // High-frequency visuals to Refs
   const muzzleFlashRef = useRef(0);
   const screenShakeRef = useRef(0);
+  const reconciliationRef = useRef(null);
   const gameOverRef = useRef(null);
   const isMobileRef = useRef(false);
   const [killFeed, setKillFeed] = useState([]);
@@ -669,6 +670,25 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
             }
           }
           if (canY) py = ty; else velRef.current.y = 0;
+        }
+
+        // --- LAG COMPENSATION: SOFT RECONCILIATION ---
+        if (reconciliationRef.current) {
+          const { x, y } = reconciliationRef.current;
+          const dist = Math.sqrt((x - px)**2 + (y - py)**2);
+          
+          if (dist > 400) {
+            // Huge discrepancy (teleport/respawn) - Hard snap
+            px = x; py = y;
+            reconciliationRef.current = null;
+          } else if (dist > 1) {
+            // Soft pull towards server position (10% per frame)
+            // This prevents the 'rubber band' snap feeling
+            px += (x - px) * 0.1;
+            py += (y - py) * 0.1;
+          } else {
+            reconciliationRef.current = null;
+          }
         }
 
         const angleChanged = Math.abs(angleDiff) > 0.01;
@@ -1192,8 +1212,9 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
           socket.emit('player-dash');
           socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
         }
-        if (dist > 150 && !isDashing) {
-          posRef.current = { x: serverMe.x, y: serverMe.y };
+        // Reconciliation: If we drift significantly, schedule a smooth pull back
+        if (dist > 180 && !isDashing) {
+          reconciliationRef.current = { x: serverMe.x, y: serverMe.y };
         }
       }
 
@@ -1216,8 +1237,9 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
     });
     
     socket.on('position-correction', (data) => {
-      posRef.current = { x: data.x, y: data.y };
-      velRef.current = { x: 0, y: 0 }; // Stop velocity to prevent sliding back into the wall
+      // Store the correction to be applied smoothly in the game loop
+      // We no longer zero out velocity here to prevent the 'freeze' effect
+      reconciliationRef.current = { x: data.x, y: data.y };
     });
 
     return () => {

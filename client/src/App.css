@@ -2964,7 +2964,7 @@ button:disabled {
   pointer-events: none;
 }
 
-.hud-editor-title-group, .save-hud-btn {
+.hud-editor-title-group, .save-hud-btn, .reset-hud-btn {
   pointer-events: auto;
 }
 
@@ -2996,6 +2996,25 @@ button:disabled {
   box-shadow: none !important;
   letter-spacing: 2px;
   transition: all 0.3s ease !important;
+}
+
+.reset-hud-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  padding: 0.35rem 0.8rem !important;
+  font-size: 0.6rem !important;
+  font-weight: 900 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  letter-spacing: 2px;
+  transition: all 0.3s ease !important;
+}
+
+.save-hud-btn:hover, .reset-hud-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
 }
 
 .save-hud-btn:hover {

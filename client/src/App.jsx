@@ -66,8 +66,8 @@ function App() {
         hud: {
           moveJoystick: { x: 15, y: 70, scale: 1 },
           aimJoystick: { x: 85, y: 70, scale: 1 },
-          dashBtn: { x: 92, y: 55, scale: 1 },
-          reloadBtn: { x: 92, y: 40, scale: 1 },
+          dashBtn: { x: 92, y: 68, scale: 1 },
+          reloadBtn: { x: 92, y: 45, scale: 1 },
           fireBtn: { x: 85, y: 30, scale: 1 }
         }
       }
@@ -533,6 +533,27 @@ function App() {
           <div className="hud-editor-title-group">
             <p>DRAG ELEMENTS TO POSITION • PINCH / SCROLL TO SCALE</p>
           </div>
+          <button 
+            onClick={() => {
+              setSettings({
+                ...settings,
+                mobileControls: {
+                  ...settings.mobileControls,
+                  hud: {
+                    moveJoystick: { x: 15, y: 70, scale: 1 },
+                    aimJoystick: { x: 85, y: 70, scale: 1 },
+                    dashBtn: { x: 92, y: 68, scale: 1 },
+                    reloadBtn: { x: 92, y: 45, scale: 1 },
+                    fireBtn: { x: 85, y: 30, scale: 1 }
+                  }
+                }
+              });
+            }} 
+            className="reset-hud-btn"
+            style={{ marginRight: '10px', background: 'rgba(255,255,255,0.1)' }}
+          >
+            RESET
+          </button>
           <button onClick={() => setIsEditingHUD(false)} className="save-hud-btn">
             SAVE
           </button>

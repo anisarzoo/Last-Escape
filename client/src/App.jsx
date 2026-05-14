@@ -816,7 +816,7 @@ function App() {
                   </div>
                   <p>
                     Locate and secure the <span>MASTER KEY</span> from the center of the arena. 
-                    Once captured, you must hold the key for <span>60 seconds</span> to override the biometric gate lockdown. 
+                    Once captured, you must hold the key for <span>120 seconds</span> to override the biometric gate lockdown. 
                     After the countdown, reach any <span>EXIT</span> tile or cross the perimeter to escape. 
                     Alternatively, eliminate all opponents to be the <span>last survivor</span>.
                   </p>
@@ -967,18 +967,17 @@ function App() {
           <button className="rules-close-btn" onClick={() => setShowRules(false)}>&times;</button>
         </div>
         <div className="rules-scroll-area">
-          <div className="rules-grid">
-            <div className="rules-section">
+          <div className="rules-grid">            <div className="rules-section">
               <h5>Gate Lockdown</h5>
-              <p>Exit gates are <span>biometrically locked</span>. You must secure the <span>Master Key</span> and hold it for <span>60 seconds</span> to override the lockdown and open the exits.</p>
+              <p>Exit gates are <span>biometrically locked</span>. You must secure the <span>Master Key</span> and hold it for <span>120 seconds</span> to override the lockdown and open the exits.</p>
             </div>
             <div className="rules-section">
-              <h5>Neural Siphon</h5>
-              <p>The key holder <span>drains health</span> from all opponents. Siphon intensity <span>doubles</span> after 60 seconds of possession.</p>
+              <h5>Speed Weight</h5>
+              <p>The Master Key is <span>physically heavy</span>. Carrying it reduces your movement speed by <span>10%</span>.</p>
             </div>
             <div className="rules-section">
-              <h5>Biometric Shield</h5>
-              <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>10%</span>.</p>
+              <h5>Endless Reserves</h5>
+              <p>The key's energy field provides <span>infinite reserve munitions</span>. You still need to reload, but you never run out of total ammo.</p>
             </div>
             <div className="rules-section">
               <h5>Combat Siphon</h5>
@@ -990,7 +989,7 @@ function App() {
             </div>
             <div className="rules-section">
               <h5>Arena Lock</h5>
-              <p>Walls are <span>structurally reinforced</span> and invulnerable for the first <span>30 seconds</span> of the mission.</p>
+              <p>Walls are <span>structurally reinforced</span> and invulnerable for the first <span>20 seconds</span> of the mission.</p>
             </div>
             <div className="rules-section">
               <h5>Supply Drops</h5>
@@ -1004,7 +1003,12 @@ function App() {
               <h5>Ballistic Ricochet</h5>
               <p>Projectiles are designed for indoor combat, <span>bouncing off surfaces</span> up to 2 times. Use indirect fire to eliminate targets around corners.</p>
             </div>
+            <div className="rules-section">
+              <h5>Biometric Shield</h5>
+              <p>Carrying the Master Key activates an energy field that reduces incoming damage by <span>10%</span>.</p>
+            </div>
           </div>
+
         </div>
       </div>
 

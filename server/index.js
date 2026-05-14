@@ -525,11 +525,17 @@ io.on('connection', (socket) => {
       setTimeout(() => {
         const p = players[socket.id];
         if (p && p.isReloading) {
-          const needed = p.maxAmmo - p.ammo;
-          const toReload = Math.min(needed, p.reserveAmmo);
-          p.ammo += toReload;
-          p.reserveAmmo -= toReload;
-          p.isReloading = false;
+          if (p.isCarryingKey) {
+            // Key carrier has infinite reserves
+            p.ammo = p.maxAmmo;
+            p.isReloading = false;
+          } else if (p.reserveAmmo > 0) {
+            const needed = p.maxAmmo - p.ammo;
+            const toReload = Math.min(needed, p.reserveAmmo);
+            p.ammo += toReload;
+            p.reserveAmmo -= toReload;
+            p.isReloading = false;
+          }
           io.to(p.roomId).emit('play-sound', { x: p.x, y: p.y, type: 'reload-end' });
         }
       }, 1500); // 1.5s reload
@@ -677,8 +683,8 @@ function startGameLoop(roomId) {
       key: room.key,
       keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,
-      exitLockoutRemaining: room.startTime ? Math.max(0, 30 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
-      pickupLockoutRemaining: (room.key.carrierId && room.keyPickupTime) ? Math.max(0, 60 - Math.floor((Date.now() - room.keyPickupTime) / 1000)) : 0,
+      exitLockoutRemaining: room.startTime ? Math.max(0, 20 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
+      pickupLockoutRemaining: (room.key.carrierId && room.keyPickupTime) ? Math.max(0, 120 - Math.floor((Date.now() - room.keyPickupTime) / 1000)) : 0,
       time: Math.floor((Date.now() - room.startTime) / 1000),
       weakWallsHP: room.weakWallsHP || {}
     });
@@ -742,7 +748,7 @@ function updateRoom(roomId) {
         
         // Arena Lock: Walls are invulnerable for the first 30s of the game
         const now = Date.now();
-        const isLocked = room.startTime && (now - room.startTime < 30000);
+        const isLocked = room.startTime && (now - room.startTime < 20000);
         
         if (!isLocked) {
           if (!room.weakWallsHP[wallKey]) room.weakWallsHP[wallKey] = 100;
@@ -877,7 +883,7 @@ function updateRoom(roomId) {
         p.stealthStartTime = now;
         room.key.carrierId = pId;
         room.lastKeyUpdate = now;
-        room.keyPickupTime = now; // Start the 60s exit gate lockdown
+        room.keyPickupTime = now; // Start the 120s exit gate lockdown
         io.to(roomId).emit('play-sound', { x: p.x, y: p.y, type: 'pickup' });
         break;
       }
@@ -895,22 +901,6 @@ function updateRoom(roomId) {
         room.keyHoldTime += delta;
         carrier.totalKeyHoldTime += delta;
         room.lastKeyUpdate = now;
-
-        // Apply Scaling Health Drain to all OTHER players
-        const drainRate = room.keyHoldTime < 60 ? 0.5 : 1.0;
-        const drainAmount = drainRate * delta;
-
-        for (const pId of room.players) {
-          if (pId === room.key.carrierId) continue;
-          if (isTeammates(room, room.key.carrierId, pId)) continue;
-          const p = players[pId];
-          if (p && p.hp > 0) {
-            p.hp -= drainAmount;
-            if (p.hp <= 0) {
-              applyElimination(room, p, room.key.carrierId);
-            }
-          }
-        }
       }
 
       // Win Condition Check: Escape map through corners or reach EXIT tile
@@ -919,7 +909,7 @@ function updateRoom(roomId) {
       const onExitTile = room.maze[tileY] && room.maze[tileY][tileX] === 2;
       const isOutside = carrier.x < -20 || carrier.x > MAZE_WIDTH + 20 || carrier.y < -20 || carrier.y > MAZE_HEIGHT + 20;
 
-      const isExitLocked = room.keyPickupTime && (now - room.keyPickupTime < 60000);
+      const isExitLocked = room.keyPickupTime && (now - room.keyPickupTime < 120000);
       
       if ((onExitTile || isOutside) && !isExitLocked) {
         endGame(room, carrier);

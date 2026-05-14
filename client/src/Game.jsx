@@ -552,7 +552,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
         const reloadBind = settings?.keyBindings?.reload || 'KeyR';
         if (keys[reloadBind] || keys['r'] || keys['R']) {
           const lp = state.players.find(p => p.id === socket.id);
-          if (lp && !lp.isReloading && lp.ammo < lp.maxAmmo && lp.reserveAmmo > 0) {
+          if (lp && !lp.isReloading && lp.ammo < lp.maxAmmo && (lp.reserveAmmo > 0 || lp.isCarryingKey)) {
             socket.emit('player-reload');
           }
           keys[reloadBind] = false;
@@ -582,7 +582,8 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
           inputY = moveJoystickRef.current.y;
         }
 
-        const BASE_ACCEL = 0.92 * speedMultiplier;
+        const isCarryingKey = state.players.find(p => p.id === socket.id)?.isCarryingKey;
+        const BASE_ACCEL = 0.92 * speedMultiplier * (isCarryingKey ? 0.9 : 1);
         const CURRENT_FRICTION = isDashing ? 0.98 : 0.85;
         const k = -Math.log(CURRENT_FRICTION);
         const frictionDt = Math.pow(CURRENT_FRICTION, dt);
@@ -1440,10 +1441,10 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
 
           {/* Reload Button */}
           <button
-            className={`mobile-btn reload-btn ${localPlayer?.isReloading ? 'reloading' : ''} ${localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0 ? 'can-reload' : ''} ${localPlayer && localPlayer.ammo === 0 && localPlayer.reserveAmmo === 0 ? 'out-of-ammo' : ''}`}
+            className={`mobile-btn reload-btn ${localPlayer?.isReloading ? 'reloading' : ''} ${localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && (localPlayer.reserveAmmo > 0 || localPlayer.isCarryingKey) ? 'can-reload' : ''} ${localPlayer && localPlayer.ammo === 0 && localPlayer.reserveAmmo === 0 && !localPlayer.isCarryingKey ? 'out-of-ammo' : ''}`}
             onTouchStart={(e) => {
               e.stopPropagation();
-              if (localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && localPlayer.reserveAmmo > 0) {
+              if (localPlayer && !localPlayer.isReloading && localPlayer.ammo < localPlayer.maxAmmo && (localPlayer.reserveAmmo > 0 || localPlayer.isCarryingKey)) {
                 socket.emit('player-reload');
               }
             }}
@@ -1620,7 +1621,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
                     ))}
                   </div>
                   <div className="ammo-reserve">
-                    <span className="reserve-value">{localPlayer.reserveAmmo}</span>
+                    <span className="reserve-value">{localPlayer.isCarryingKey ? '∞' : localPlayer.reserveAmmo}</span>
                   </div>
                 </div>
               </div>
@@ -1629,7 +1630,6 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
         </div>
       )}
 
-      {/* Arena Lock / Key Carrier Alerts */}
       {uiGameState?.exitLockoutRemaining > 0 ? (
         <div className="key-carrier-alert arena-lock">
           <Zap size={20} className="lock-icon" style={{ color: 'var(--accent)' }} />

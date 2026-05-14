@@ -706,7 +706,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
 
         if ((canShoot || dedicatedShoot) && now - shootCooldownRef.current > 500) {
           initAudio();
-          socket.emit('player-shoot');
+          socket.emit('player-shoot', { aimAngle: aimAngleRef.current });
           muzzleFlashRef.current = now;
           shootCooldownRef.current = now;
         }

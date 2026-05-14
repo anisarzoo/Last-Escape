@@ -522,7 +522,7 @@ io.on('connection', (socket) => {
 
   socket.on('player-reload', () => {
     const player = players[socket.id];
-    if (player && player.hp > 0 && !player.isReloading && player.ammo < player.maxAmmo && player.reserveAmmo > 0) {
+    if (player && player.hp > 0 && !player.isReloading && player.ammo < player.maxAmmo && (player.reserveAmmo > 0 || player.isCarryingKey)) {
       player.isReloading = true;
       player.lastReloadTime = Date.now();
       io.to(player.roomId).emit('play-sound', { x: player.x, y: player.y, type: 'reload-start' });
@@ -547,7 +547,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('player-shoot', () => {
+  socket.on('player-shoot', (data) => {
     const player = players[socket.id];
     const now = Date.now();
     if (player && player.hp > 0 && !player.isReloading && player.ammo > 0 && now - player.lastShotTime > 500) {
@@ -555,13 +555,14 @@ io.on('connection', (socket) => {
       if (room && room.gameStarted) {
         player.lastShotTime = now;
         player.ammo -= 1;
+        const angle = data?.aimAngle ?? player.aimAngle;
         const bullet = {
           id: Math.random().toString(36).substr(2, 9),
           ownerId: socket.id,
-          x: player.x,
-          y: player.y,
-          vx: Math.cos(player.aimAngle) * 15,
-          vy: Math.sin(player.aimAngle) * 15,
+          x: player.x + Math.cos(angle) * 28,
+          y: player.y + Math.sin(angle) * 28,
+          vx: Math.cos(angle) * 15,
+          vy: Math.sin(angle) * 15,
           range: player.range * TILE_SIZE,
           distanceTraveled: 0,
           bounces: 2

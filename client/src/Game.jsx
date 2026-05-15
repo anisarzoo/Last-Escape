@@ -1310,17 +1310,52 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
       const midXPercent = (moveX + aimX) / 2;
       const splitX = (midXPercent / 100) * width;
       
-      const isMoveZone = moveX < aimX ? (clientX < splitX) : (clientX > splitX);
-      
-      if (isMoveZone) {
-        if (!moveJoystickRef.current.active) {
-          moveJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
-          setJoystickUI(prev => ({ ...prev, move: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY } }));
+      const joystickMode = settings?.mobileControls?.joystickMode || 'static';
+      const isStatic = joystickMode === 'static';
+
+      if (isStatic) {
+        const moveBaseX = (moveX / 100) * width;
+        const moveBaseY = (hud.moveJoystick.y / 100) * height;
+        const aimBaseX = (aimX / 100) * width;
+        const aimBaseY = (hud.aimJoystick.y / 100) * height;
+        
+        const distMove = Math.sqrt((clientX - moveBaseX)**2 + (clientY - moveBaseY)**2);
+        const distAim = Math.sqrt((clientX - aimBaseX)**2 + (clientY - aimBaseY)**2);
+        
+        // Large hit radius for static joysticks to ensure they catch thumb drops easily
+        if (distMove < 120 && !moveJoystickRef.current.active) {
+          moveJoystickRef.current = { active: true, x: 0, y: 0, startX: moveBaseX, startY: moveBaseY, curX: clientX, curY: clientY, id: touch.identifier };
+          setJoystickUI(prev => ({ ...prev, move: { active: true, x: moveBaseX, y: moveBaseY, curX: clientX, curY: clientY } }));
+        } else if (distAim < 120 && !aimJoystickRef.current.active) {
+          aimJoystickRef.current = { active: true, x: 0, y: 0, startX: aimBaseX, startY: aimBaseY, curX: clientX, curY: clientY, id: touch.identifier };
+          setJoystickUI(prev => ({ ...prev, aim: { active: true, x: aimBaseX, y: aimBaseY, curX: clientX, curY: clientY, isFiring: false } }));
         }
       } else {
-        if (!aimJoystickRef.current.active) {
-          aimJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
-          setJoystickUI(prev => ({ ...prev, aim: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY, isFiring: false } }));
+        const isMoveZone = moveX < aimX ? (clientX < splitX) : (clientX > splitX);
+        
+        // Prevent floating joysticks from spawning on top of HUD buttons
+        let overlapBtn = false;
+        ['dashBtn', 'reloadBtn', 'fireBtn'].forEach(btnKey => {
+          if (btnKey === 'fireBtn' && !isDedicatedFire) return;
+          const b = hud[btnKey];
+          if (!b) return;
+          const bx = (b.x / 100) * width;
+          const by = (b.y / 100) * height;
+          if (Math.sqrt((clientX - bx)**2 + (clientY - by)**2) < 70) overlapBtn = true;
+        });
+
+        if (overlapBtn) continue;
+
+        if (isMoveZone) {
+          if (!moveJoystickRef.current.active) {
+            moveJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
+            setJoystickUI(prev => ({ ...prev, move: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY } }));
+          }
+        } else {
+          if (!aimJoystickRef.current.active) {
+            aimJoystickRef.current = { active: true, x: 0, y: 0, startX: clientX, startY: clientY, curX: clientX, curY: clientY, id: touch.identifier };
+            setJoystickUI(prev => ({ ...prev, aim: { active: true, x: clientX, y: clientY, curX: clientX, curY: clientY, isFiring: false } }));
+          }
         }
       }
     }
@@ -1504,41 +1539,43 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
           )}
 
           {/* Move Joystick Visual */}
-          {joystickUI.move.active && (
+          {(joystickUI.move.active || settings?.mobileControls?.joystickMode === 'static') && (
             <div 
               className="joystick-base" 
               style={{ 
-                left: joystickUI.move.x, 
-                top: joystickUI.move.y,
-                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.moveJoystick.scale || 1})`
+                left: settings?.mobileControls?.joystickMode === 'static' ? `${settings.mobileControls.hud.moveJoystick.x}%` : joystickUI.move.x, 
+                top: settings?.mobileControls?.joystickMode === 'static' ? `${settings.mobileControls.hud.moveJoystick.y}%` : joystickUI.move.y,
+                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.moveJoystick.scale || 1})`,
+                opacity: (settings?.mobileControls?.joystickMode === 'static' && !joystickUI.move.active) ? 0.3 : 1
               }}
             >
-              <div className="joystick-knob" style={{ transform: `translate(${joystickUI.move.curX - joystickUI.move.x}px, ${joystickUI.move.curY - joystickUI.move.y}px)` }} />
+              <div className="joystick-knob" style={{ transform: `translate(${joystickUI.move.active ? joystickUI.move.curX - moveJoystickRef.current.startX : 0}px, ${joystickUI.move.active ? joystickUI.move.curY - moveJoystickRef.current.startY : 0}px)` }} />
             </div>
           )}
 
           {/* Aim Joystick Visual */}
-          {joystickUI.aim.active && (
+          {(joystickUI.aim.active || settings?.mobileControls?.joystickMode === 'static') && (
             <div
               className={`joystick-base ${joystickUI.aim.isFiring ? 'firing' : ''}`}
               style={{ 
-                left: joystickUI.aim.x, 
-                top: joystickUI.aim.y,
-                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.aimJoystick.scale || 1})`
+                left: settings?.mobileControls?.joystickMode === 'static' ? `${settings.mobileControls.hud.aimJoystick.x}%` : joystickUI.aim.x, 
+                top: settings?.mobileControls?.joystickMode === 'static' ? `${settings.mobileControls.hud.aimJoystick.y}%` : joystickUI.aim.y,
+                transform: `translate(-50%, -50%) scale(${settings.mobileControls.hud.aimJoystick.scale || 1})`,
+                opacity: (settings?.mobileControls?.joystickMode === 'static' && !joystickUI.aim.active) ? 0.3 : 1
               }}
             >
               <div
                 className="joystick-knob"
                 style={{
-                  left: 30 + (joystickUI.aim.curX - joystickUI.aim.x),
-                  top: 30 + (joystickUI.aim.curY - joystickUI.aim.y)
+                  left: 30 + (joystickUI.aim.active ? joystickUI.aim.curX - aimJoystickRef.current.startX : 0),
+                  top: 30 + (joystickUI.aim.active ? joystickUI.aim.curY - aimJoystickRef.current.startY : 0)
                 }}
               />
             </div>
           )}
 
-          {/* Persistent Joystick Guides (faint circles where user set them) */}
-          {!joystickUI.move.active && (
+          {/* Persistent Joystick Guides (faint circles where user set them, floating mode only) */}
+          {(!joystickUI.move.active && settings?.mobileControls?.joystickMode !== 'static') && (
             <div 
               className="joystick-guide" 
               style={{ 
@@ -1554,7 +1591,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
               }}
             />
           )}
-          {!joystickUI.aim.active && (
+          {(!joystickUI.aim.active && settings?.mobileControls?.joystickMode !== 'static') && (
             <div 
               className="joystick-guide" 
               style={{ 

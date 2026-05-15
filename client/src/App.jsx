@@ -63,6 +63,7 @@ function App() {
       mobileControls: {
         fireMode: 'integrated',
         layout: 'standard',
+        joystickMode: 'static',
         hud: {
           moveJoystick: { x: 15, y: 70, scale: 1 },
           aimJoystick: { x: 85, y: 70, scale: 1 },
@@ -371,6 +372,32 @@ function App() {
                         })}
                       >
                         DEDIC
+                      </button>
+                    </div>
+                  </div>
+                  <div className="compact-control-row">
+                    <div className="control-text">
+                      <h6>Joystick Mode</h6>
+                      <p>Floating or Static base</p>
+                    </div>
+                    <div className="mini-tab-switch">
+                      <button 
+                        className={settings.mobileControls.joystickMode !== 'static' ? 'active' : ''}
+                        onClick={() => setSettings({
+                          ...settings, 
+                          mobileControls: { ...settings.mobileControls, joystickMode: 'floating' }
+                        })}
+                      >
+                        FLOAT
+                      </button>
+                      <button 
+                        className={settings.mobileControls.joystickMode === 'static' ? 'active' : ''}
+                        onClick={() => setSettings({
+                          ...settings, 
+                          mobileControls: { ...settings.mobileControls, joystickMode: 'static' }
+                        })}
+                      >
+                        STATIC
                       </button>
                     </div>
                   </div>

@@ -3081,7 +3081,7 @@ button:disabled {
 .hud-draggable-element.fireBtn {
   width: 75px;
   height: 75px;
-  border-radius: 16px;
+  border-radius: 50%;
 }
 
 .reset-defaults-btn {

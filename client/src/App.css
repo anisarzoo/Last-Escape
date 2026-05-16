@@ -1658,9 +1658,9 @@ button:disabled {
 }
 
 .overlay-buttons button:first-child {
-  background: linear-gradient(to bottom, #6366f1, #4f46e5);
+  background: linear-gradient(to bottom, #10b981, #059669);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 20px var(--primary-glow);
+  box-shadow: 0 0 20px var(--accent-glow);
 }
 
 .overlay-buttons button:last-child {
@@ -1676,7 +1676,7 @@ button:disabled {
 }
 
 .overlay-buttons button:first-child:hover {
-  box-shadow: 0 15px 30px var(--primary-glow);
+  box-shadow: 0 15px 30px var(--accent-glow);
 }
 
 .overlay-buttons button:last-child:hover {

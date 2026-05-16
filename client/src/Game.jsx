@@ -1567,8 +1567,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
               <div
                 className="joystick-knob"
                 style={{
-                  left: 30 + (joystickUI.aim.active ? joystickUI.aim.curX - aimJoystickRef.current.startX : 0),
-                  top: 30 + (joystickUI.aim.active ? joystickUI.aim.curY - aimJoystickRef.current.startY : 0)
+                  transform: `translate(${joystickUI.aim.active ? joystickUI.aim.curX - aimJoystickRef.current.startX : 0}px, ${joystickUI.aim.active ? joystickUI.aim.curY - aimJoystickRef.current.startY : 0}px)`
                 }}
               />
             </div>

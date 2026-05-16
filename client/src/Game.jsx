@@ -1779,7 +1779,13 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
                         <td>{s.damageDealt || 0}</td>
                         <td>{s.healthGained || 0}</td>
                         <td>{s.holdTime}s</td>
-                        <td style={{ color: s.killedBy === 'ZONE' ? 'var(--danger)' : 'inherit' }}>{killerName}</td>
+                        <td className={`eliminated-by-cell ${s.killedBy === 'ZONE' ? 'by-zone' : ''}`}>
+                          {s.killedBy === 'ZONE' ? (
+                            <span className="zone-text">THE DEADLY ZONE</span>
+                          ) : (
+                            <span className="killer-text">{killerName}</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}

@@ -655,7 +655,7 @@ function startGameLoop(roomId) {
     }
 
     updateRoom(roomId);
-    const room = rooms[roomId];
+    
     if (!room) {
       if (room.interval) clearInterval(room.interval);
       return;
@@ -691,7 +691,7 @@ function startGameLoop(roomId) {
       key: room.key,
       keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,
-      exitLockoutRemaining: room.startTime ? Math.max(0, 20 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
+      exitLockoutRemaining: room.startTime ? Math.max(0, 30 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
       pickupLockoutRemaining: (room.key.carrierId && room.keyPickupTime) ? Math.max(0, 120 - Math.floor((Date.now() - room.keyPickupTime) / 1000)) : 0,
       time: Math.floor((Date.now() - room.startTime) / 1000),
       weakWallsHP: room.weakWallsHP || {}
@@ -756,7 +756,7 @@ function updateRoom(roomId) {
         
         // Arena Lock: Walls are invulnerable for the first 30s of the game
         const now = Date.now();
-        const isLocked = room.startTime && (now - room.startTime < 20000);
+        const isLocked = room.startTime && (now - room.startTime < 30000);
         
         if (!isLocked) {
           if (!room.weakWallsHP[wallKey]) room.weakWallsHP[wallKey] = 100;

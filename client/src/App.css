@@ -21,6 +21,16 @@
   --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
 }
 
+.eliminated-by-cell .zone-text {
+  color: var(--danger);
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
+}
+
+.eliminated-by-cell .killer-text {
+  opacity: 0.8;
+}
+
 /* Global Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;

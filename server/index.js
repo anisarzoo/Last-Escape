@@ -488,7 +488,9 @@ io.on('connection', (socket) => {
           if (!target || target.hp <= 0) continue;
 
           const dist = Math.sqrt((player.x - target.x)**2 + (player.y - target.y)**2);
-          if (dist < 40) { // Collision radius
+          if (dist < 40 && (!player.dashHitPlayers || !player.dashHitPlayers.includes(pId))) { // Collision radius + hit once per dash check
+            if (!player.dashHitPlayers) player.dashHitPlayers = [];
+            player.dashHitPlayers.push(pId);
             const dmg = 10;
             target.hp -= dmg;
             player.damageDealt += dmg;
@@ -522,8 +524,12 @@ io.on('connection', (socket) => {
     if (player && player.hp > 0 && Date.now() - player.lastDashTime > 4000) {
       player.lastDashTime = Date.now();
       player.isDashing = true;
+      player.dashHitPlayers = [];
       setTimeout(() => {
-        if (players[socket.id]) players[socket.id].isDashing = false;
+        if (players[socket.id]) {
+          players[socket.id].isDashing = false;
+          delete players[socket.id].dashHitPlayers;
+        }
       }, 400);
     }
   });

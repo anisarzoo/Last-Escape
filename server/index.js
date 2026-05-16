@@ -387,7 +387,9 @@ io.on('connection', (socket) => {
     if (player && player.hp > 0 && room && room.gameStarted) {
       // Validate input: clamp to max plausible movement per tick (Anti-speedhack)
       // Increased from 25 to 100 to prevent legitimate dashes + network jitter from causing 'freezes'
-      const MAX_MOVE_PER_TICK = player.isDashing ? 120 : 60;
+      let maxMove = player.isDashing ? 120 : 60;
+      if (player.isCarryingKey) maxMove *= 0.9;
+      const MAX_MOVE_PER_TICK = maxMove;
       const dx = movement.x - player.x;
       const dy = movement.y - player.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -435,7 +437,7 @@ io.on('connection', (socket) => {
           
           if (
             tile === 1 || tile === 3 || 
-            (tile === 2 && (!room.key.carrierId || (room.keyPickupTime && (Date.now() - room.keyPickupTime < 60000))) && !isCurrentlyInExit)
+            (tile === 2 && (!room.key.carrierId || (room.keyPickupTime && (Date.now() - room.keyPickupTime < 120000))) && !isCurrentlyInExit)
           ) {
             stepBlocked = true;
             break;

@@ -606,7 +606,7 @@ io.on('connection', (socket) => {
             const newHost = players[room.hostId];
             if (newHost) newHost.isHost = true;
           }
-          io.to(player.roomId).emit('room-update', buildRoomPayload(room));
+          socket.to(player.roomId).emit('room-update', buildRoomPayload(room));
 
           // Track abandoned stats
           if (room.gameStarted) {

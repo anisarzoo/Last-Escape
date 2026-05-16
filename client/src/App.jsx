@@ -144,6 +144,9 @@ function App() {
 
   useEffect(() => {
     function onRoomUpdate(data) {
+      const amIInRoom = data.players.some(p => p.id === socket.id);
+      if (!amIInRoom) return;
+
       setRoomData(data);
       setRoomId(data.id);
       setIsJoined(true);

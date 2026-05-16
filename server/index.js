@@ -218,7 +218,7 @@ io.on('connection', (socket) => {
         maxPlayers: config.maxPlayers,
         bullets: [],
         maze: JSON.parse(JSON.stringify(MAZE_MAP)), // Deep copy for room-specific destruction
-        weakWallsHP: {}, // Track HP of type 3 tiles
+        woodenWallsHP: {}, // Track HP of type 3 tiles
         gameStarted: false,
         hostId: socket.id,
         key: { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null },
@@ -286,7 +286,7 @@ io.on('connection', (socket) => {
       room.bullets = [];
       room.pickups = [];
       room.maze = JSON.parse(JSON.stringify(MAZE_MAP));
-      room.weakWallsHP = {};
+      room.woodenWallsHP = {};
       room.key = { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null };
       room.zoneRadius = Math.sqrt((MAZE_WIDTH / 2) ** 2 + (MAZE_HEIGHT / 2) ** 2) + 200;
       room.zoneRemoved = false;
@@ -691,10 +691,10 @@ function startGameLoop(roomId) {
       key: room.key,
       keyHoldTime: room.keyHoldTime || 0,
       zoneRadius: room.zoneRadius,
-      exitLockoutRemaining: room.startTime ? Math.max(0, 30 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
+      exitLockoutRemaining: room.startTime ? Math.max(0, 20 - Math.floor((Date.now() - room.startTime) / 1000)) : 0,
       pickupLockoutRemaining: (room.key.carrierId && room.keyPickupTime) ? Math.max(0, 120 - Math.floor((Date.now() - room.keyPickupTime) / 1000)) : 0,
       time: Math.floor((Date.now() - room.startTime) / 1000),
-      weakWallsHP: room.weakWallsHP || {}
+      woodenWallsHP: room.woodenWallsHP || {}
     });
   }, 1000 / TICK_RATE);
 }
@@ -748,21 +748,21 @@ function updateRoom(roomId) {
     const nextTileY = Math.floor(nextY / TILE_SIZE);
 
     const isWall = room.maze[nextTileY] && room.maze[nextTileY][nextTileX] === 1;
-    const isWeakWall = room.maze[nextTileY] && room.maze[nextTileY][nextTileX] === 3;
+    const isWoodenWall = room.maze[nextTileY] && room.maze[nextTileY][nextTileX] === 3;
 
-    if (isWall || isWeakWall) {
-      if (isWeakWall) {
+    if (isWall || isWoodenWall) {
+      if (isWoodenWall) {
         const wallKey = `${nextTileY},${nextTileX}`;
         
-        // Arena Lock: Walls are invulnerable for the first 30s of the game
+        // Arena Lock: Walls are invulnerable for the first 20s of the game
         const now = Date.now();
-        const isLocked = room.startTime && (now - room.startTime < 30000);
+        const isLocked = room.startTime && (now - room.startTime < 20000);
         
         if (!isLocked) {
-          if (!room.weakWallsHP[wallKey]) room.weakWallsHP[wallKey] = 100;
-          room.weakWallsHP[wallKey] -= 25; // 4 shots to break
+          if (!room.woodenWallsHP[wallKey]) room.woodenWallsHP[wallKey] = 100;
+          room.woodenWallsHP[wallKey] -= 25; // 4 shots to break
           
-          if (room.weakWallsHP[wallKey] <= 0) {
+          if (room.woodenWallsHP[wallKey] <= 0) {
             room.maze[nextTileY][nextTileX] = 0;
             io.to(roomId).emit('maze-update', { x: nextTileX, y: nextTileY, type: 0 });
             io.to(roomId).emit('play-sound', { x: nextX, y: nextY, type: 'hit' });

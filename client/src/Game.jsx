@@ -784,7 +784,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
                 mCtx.fillStyle = '#451a03'; mCtx.fillRect(tx + 2, ty + 2, TILE_SIZE - 4, TILE_SIZE - 4);
                 mCtx.strokeStyle = '#f59e0b'; mCtx.lineWidth = 2; mCtx.strokeRect(tx + 4, ty + 4, TILE_SIZE - 8, TILE_SIZE - 8);
 
-                const hp = (state.weakWallsHP && state.weakWallsHP[`${y},${x}`]) !== undefined ? state.weakWallsHP[`${y},${x}`] : 100;
+                const hp = (state.woodenWallsHP && state.woodenWallsHP[`${y},${x}`]) !== undefined ? state.woodenWallsHP[`${y},${x}`] : 100;
                 if (hp < 100) {
                   mCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
                   mCtx.lineWidth = 1;
@@ -1161,7 +1161,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
     });
 
     socket.on('game-state', (data) => {
-      if (gameStateRef.current?.weakWallsHP && JSON.stringify(gameStateRef.current.weakWallsHP) !== JSON.stringify(data.weakWallsHP)) {
+      if (gameStateRef.current?.woodenWallsHP && JSON.stringify(gameStateRef.current.woodenWallsHP) !== JSON.stringify(data.woodenWallsHP)) {
         offscreenMazeCanvasRef.current = null;
         offscreenMinimapCanvasRef.current = null;
       }

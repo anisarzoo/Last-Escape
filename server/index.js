@@ -491,7 +491,7 @@ io.on('connection', (socket) => {
           if (dist < 40 && (!player.dashHitPlayers || !player.dashHitPlayers.includes(pId))) { // Collision radius + hit once per dash check
             if (!player.dashHitPlayers) player.dashHitPlayers = [];
             player.dashHitPlayers.push(pId);
-            const dmg = 10;
+            const dmg = 25;
             target.hp -= dmg;
             player.damageDealt += dmg;
             if (target.hp <= 0) {

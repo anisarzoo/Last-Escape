@@ -1213,7 +1213,9 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
           socket.emit('play-sound', { x: posRef.current.x, y: posRef.current.y, type: 'dash' });
         }
         // Reconciliation: If we drift significantly, schedule a smooth pull back
-        if (dist > 180 && !isDashing) {
+        // Grace period extended to 800ms and threshold to 250 to prevent rubber-banding on high ping
+        const isRecentlyDashing = Date.now() - dashTimeRef.current < 800;
+        if (dist > 250 && !isRecentlyDashing) {
           reconciliationRef.current = { x: serverMe.x, y: serverMe.y };
         }
       }

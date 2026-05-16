@@ -393,7 +393,7 @@ io.on('connection', (socket) => {
     if (player && player.hp > 0 && room && room.gameStarted) {
       // Validate input: clamp to max plausible movement per tick (Anti-speedhack)
       // Increased from 25 to 100 to prevent legitimate dashes + network jitter from causing 'freezes'
-      let maxMove = player.isDashing ? 120 : 60;
+      let maxMove = player.isDashing ? 200 : 80;
       if (player.isCarryingKey) maxMove *= 0.9;
       const MAX_MOVE_PER_TICK = maxMove;
       const dx = movement.x - player.x;
@@ -524,7 +524,7 @@ io.on('connection', (socket) => {
       player.isDashing = true;
       setTimeout(() => {
         if (players[socket.id]) players[socket.id].isDashing = false;
-      }, 150);
+      }, 400);
     }
   });
 

@@ -212,6 +212,7 @@ io.on('connection', (socket) => {
       rooms[roomId] = {
         id: roomId,
         players: [],
+        allTimePlayers: [], // To track everyone who participated
         mode: selectedMode,
         isTeamMode: config.isTeamMode,
         teamSize: config.teamSize,
@@ -271,6 +272,9 @@ io.on('connection', (socket) => {
     };
 
     room.players.push(socket.id);
+    if (!room.allTimePlayers.find(p => p.id === socket.id)) {
+      room.allTimePlayers.push({ id: socket.id, name: playerName });
+    }
     io.to(roomId).emit('room-update', buildRoomPayload(room));
     socket.emit('initial-maze', room.maze);
     console.log(`${playerName} joined room ${roomId}`);
@@ -285,6 +289,7 @@ io.on('connection', (socket) => {
       room.status = 'waiting';
       room.bullets = [];
       room.pickups = [];
+      room.abandonedStats = []; // Reset abandoned stats for new game
       room.maze = JSON.parse(JSON.stringify(MAZE_MAP));
       room.woodenWallsHP = {};
       room.key = { x: MAZE_WIDTH / 2, y: MAZE_HEIGHT / 2, carrierId: null };
@@ -376,6 +381,7 @@ io.on('connection', (socket) => {
       room.startTime = Date.now();
       room.keyHoldTime = 0;
       room.lastKeyUpdate = null;
+      room.initialPlayerCount = room.players.length; // Track for Last Man Standing check
       io.to(player.roomId).emit('game-started');
       startGameLoop(player.roomId);
     }
@@ -601,6 +607,30 @@ io.on('connection', (socket) => {
             if (newHost) newHost.isHost = true;
           }
           io.to(player.roomId).emit('room-update', buildRoomPayload(room));
+
+          // Track abandoned stats
+          if (room.gameStarted) {
+            if (!room.abandonedStats) room.abandonedStats = [];
+            if (!room.abandonedStats.find(s => s.id === player.id)) {
+              room.abandonedStats.push({
+                id: player.id,
+                name: player.name,
+                teamId: player.teamId || null,
+                score: player.score,
+                damageDealt: Math.round(player.damageDealt || 0),
+                healthGained: Math.round(player.healthGained || 0),
+                killedBy: player.hp > 0 ? 'ABANDONED' : player.killedBy,
+                holdTime: Math.floor(player.totalKeyHoldTime || 0)
+              });
+            }
+          }
+
+          // Last Man Standing: If only one player left in the room, they win
+          if (room.gameStarted && room.players.length === 1) {
+            const lastPlayerId = room.players[0];
+            const lastPlayer = players[lastPlayerId];
+            if (lastPlayer) endGame(room, lastPlayer);
+          }
         }
         socket.leave(player.roomId);
       }
@@ -629,6 +659,30 @@ io.on('connection', (socket) => {
             if (newHost) newHost.isHost = true;
           }
           io.to(player.roomId).emit('room-update', buildRoomPayload(room));
+
+          // Track abandoned stats
+          if (room.gameStarted) {
+            if (!room.abandonedStats) room.abandonedStats = [];
+            if (!room.abandonedStats.find(s => s.id === player.id)) {
+              room.abandonedStats.push({
+                id: player.id,
+                name: player.name,
+                teamId: player.teamId || null,
+                score: player.score,
+                damageDealt: Math.round(player.damageDealt || 0),
+                healthGained: Math.round(player.healthGained || 0),
+                killedBy: player.hp > 0 ? 'ABANDONED' : player.killedBy,
+                holdTime: Math.floor(player.totalKeyHoldTime || 0)
+              });
+            }
+          }
+
+          // Last Man Standing: If only one player left in the room, they win
+          if (room.gameStarted && room.players.length === 1) {
+            const lastPlayerId = room.players[0];
+            const lastPlayer = players[lastPlayerId];
+            if (lastPlayer) endGame(room, lastPlayer);
+          }
         }
       }
       delete players[socket.id];
@@ -955,7 +1009,7 @@ function updateRoom(roomId) {
 
   // Last Man Standing Check
   const alivePlayers = room.players.map(id => players[id]).filter(p => p && p.hp > 0);
-  if (room.players.length > 1) { // Only check if the game started with multiple players
+  if (room.initialPlayerCount > 1) { // Check if the game started with multiple players
     if (room.isTeamMode) {
       const aliveTeams = new Set(alivePlayers.map(p => p.teamId));
       if (aliveTeams.size === 1) {
@@ -978,20 +1032,27 @@ function endGame(room, winner) {
   const winnerTeamId = room.isTeamMode ? (winner?.teamId || null) : null;
   const roomPlayers = getRoomPlayers(room);
   
+  const activeStats = roomPlayers.map((p) => ({
+    id: p.id,
+    name: p.name,
+    teamId: p.teamId || null,
+    score: p.score,
+    damageDealt: Math.round(p.damageDealt || 0),
+    healthGained: Math.round(p.healthGained || 0),
+    killedBy: p.killedBy,
+    holdTime: Math.floor(p.totalKeyHoldTime || 0),
+    isWinner: room.isTeamMode ? (p.teamId === winnerTeamId && winnerTeamId !== null) : p.id === winner?.id
+  }));
+
+  const abandonedStats = (room.abandonedStats || []).map(s => ({
+    ...s,
+    isWinner: false // Abandoned players cannot win
+  }));
+
   io.to(roomId).emit('game-over', { 
     winner: getWinnerLabel(room, winner),
     winnerTeamId,
-    stats: roomPlayers.map((p) => ({
-      id: p.id,
-      name: p.name,
-      teamId: p.teamId || null,
-      score: p.score,
-      damageDealt: Math.round(p.damageDealt || 0),
-      healthGained: Math.round(p.healthGained || 0),
-      killedBy: p.killedBy,
-      holdTime: Math.floor(p.totalKeyHoldTime || 0),
-      isWinner: room.isTeamMode ? (p.teamId === winnerTeamId && winnerTeamId !== null) : p.id === winner?.id
-    }))
+    stats: [...activeStats, ...abandonedStats]
   });
   
   room.gameStarted = false;

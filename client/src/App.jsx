@@ -19,6 +19,7 @@ import {
   Move,
   MousePointer2,
   Trash2,
+  LogOut,
   RotateCcw,
   Info
 } from 'lucide-react';
@@ -545,8 +546,9 @@ function App() {
               setGameStarted(false);
             }}
           >
-            <Trash2 size={14} />
-            QUIT MISSION
+            <LogOut size={16} className="btn-icon-left" />
+            <span>QUIT MISSION</span>
+            <div className="btn-spacer" />
           </button>
         </div>
       )}

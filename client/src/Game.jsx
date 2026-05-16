@@ -1187,7 +1187,7 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
           if (prevP && prevP.hp > 0 && p.hp <= 0) {
             const killer = data.players.find(kp => kp.id === p.killedBy);
             const entry = {
-              id: Date.now(),
+              id: `${Date.now()}-${Math.random()}`,
               killer: p.killedBy === 'ZONE' ? 'THE ZONE' : (killer ? killer.name : 'Unknown'),
               victim: p.name,
               isZone: p.killedBy === 'ZONE'
@@ -1769,19 +1769,22 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
                 <tbody>
                   {gameOver.stats?.sort((a, b) => b.score - a.score).map((s, i) => {
                     const killerName = s.killedBy === 'ZONE' ? 'THE DEADLY ZONE' 
+                      : s.killedBy === 'ABANDONED' ? 'ABANDONED'
                       : (s.killedBy ? (gameOver.stats.find(p => p.id === s.killedBy)?.name?.toUpperCase() || 'UNKNOWN') : '-');
                     
                     return (
-                      <tr key={i} className={s.isWinner ? 'winner-row' : ''}>
+                      <tr key={s.id || i} className={`${s.isWinner ? 'winner-row' : ''} ${s.killedBy === 'ABANDONED' ? 'abandoned-row' : ''}`}>
                         <td>{s.name.toUpperCase()} {s.isWinner ? '(WINNER)' : ''}</td>
                         {hasTeamsInSummary && <td>{s.teamId ? `TEAM ${s.teamId}` : '-'}</td>}
                         <td>{s.score}</td>
                         <td>{s.damageDealt || 0}</td>
                         <td>{s.healthGained || 0}</td>
                         <td>{s.holdTime}s</td>
-                        <td className={`eliminated-by-cell ${s.killedBy === 'ZONE' ? 'by-zone' : ''}`}>
+                        <td className={`eliminated-by-cell ${s.killedBy === 'ZONE' ? 'by-zone' : s.killedBy === 'ABANDONED' ? 'by-abandon' : ''}`}>
                           {s.killedBy === 'ZONE' ? (
                             <span className="zone-text">THE DEADLY ZONE</span>
+                          ) : s.killedBy === 'ABANDONED' ? (
+                            <span className="abandon-text">ABANDONED</span>
                           ) : (
                             <span className="killer-text">{killerName}</span>
                           )}

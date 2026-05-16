@@ -31,6 +31,17 @@
   opacity: 0.8;
 }
 
+.abandoned-row {
+  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.abandon-text {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 0.75rem;
+}
+
 /* Global Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
@@ -3141,32 +3152,54 @@ button:disabled {
 
 /* Settings Modal Footer Actions */
 .settings-footer-actions {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
+  margin-top: auto; /* Push to bottom if content is short */
+  padding: 1.5rem 2.5rem;
   border-top: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.2); /* Subtle contrast for footer */
 }
 
 .quit-game-btn {
   width: 100%;
-  padding: 0.85rem !important;
-  background: rgba(244, 63, 94, 0.1) !important;
+  padding: 0.85rem 1.5rem !important;
+  background: rgba(244, 63, 94, 0.08) !important;
   border: 1px solid rgba(244, 63, 94, 0.2) !important;
   color: #fb7185 !important;
   font-weight: 800 !important;
-  letter-spacing: 0.1rem !important;
-  border-radius: 1rem !important;
+  font-size: 0.85rem !important;
+  letter-spacing: 0.15rem !important;
+  border-radius: 0.75rem !important;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  transition: all 0.2s ease !important;
+  justify-content: space-between; /* Space between icon, text, and spacer */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.quit-game-btn .btn-icon-left {
+  opacity: 0.7;
+}
+
+.quit-game-btn .btn-spacer {
+  width: 16px; /* Match icon size to keep text centered */
+}
+
+.quit-game-btn span {
+  flex: 1;
+  text-align: center;
 }
 
 .quit-game-btn:hover {
-  background: rgba(244, 63, 94, 0.2) !important;
-  border-color: rgba(244, 63, 94, 0.4) !important;
+  background: rgba(244, 63, 94, 0.15) !important;
+  border-color: rgba(244, 63, 94, 0.5) !important;
+  color: #fff !important;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px -5px rgba(244, 63, 94, 0.3);
+  box-shadow: 0 10px 25px -5px rgba(244, 63, 94, 0.4);
+}
+
+.quit-game-btn:hover .btn-icon-left {
+  opacity: 1;
+  transform: translateX(-2px);
 }
 
 .quit-game-btn:active {

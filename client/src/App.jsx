@@ -45,6 +45,7 @@ function App() {
   const [isJoined, setIsJoined] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [roomData, setRoomData] = useState(null);
+  const [currentSocketId, setCurrentSocketId] = useState(null);
   const [showRules, setShowRules] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [error, setError] = useState('');
@@ -147,6 +148,11 @@ function App() {
       setRoomId(data.id);
       setIsJoined(true);
       setError('');
+      if (socket.id) setCurrentSocketId(socket.id);
+    }
+
+    function onConnect() {
+      setCurrentSocketId(socket.id);
     }
 
     function onGameStarted() {
@@ -164,12 +170,16 @@ function App() {
     }
 
     socket.on('room-update', onRoomUpdate);
+    socket.on('connect', onConnect);
     socket.on('game-started', onGameStarted);
     socket.on('error', onError);
     socket.on('rematch-triggered', onRematchTriggered);
+    
+    if (socket.id) setCurrentSocketId(socket.id);
 
     return () => {
       socket.off('room-update', onRoomUpdate);
+      socket.off('connect', onConnect);
       socket.off('game-started', onGameStarted);
       socket.off('error', onError);
       socket.off('rematch-triggered', onRematchTriggered);
@@ -829,7 +839,7 @@ function App() {
                 </div>
                 
                 <div className="lobby-actions">
-                  {roomData?.hostId === socket.id ? (
+                  {(roomData?.hostId === currentSocketId || roomData?.players?.find(p => p.id === currentSocketId)?.isHost) ? (
                     <button onClick={handleStart} className="start-btn" disabled={!canStartMatch}>
                       START MISSION
                     </button>
@@ -916,7 +926,7 @@ function App() {
                         <div className="team-group">
                           <div className="team-header-row">
                             <h4 className="team-title title-a">TEAM ALPHA</h4>
-                            {roomData.players.find(p => p.id === socket.id)?.teamId !== 'A' && (
+                            {roomData.players.find(p => p.id === currentSocketId)?.teamId !== 'A' && (
                               <button 
                                 className="team-join-btn btn-a"
                                 onClick={() => socket.emit('switch-team', { teamId: 'A' })}
@@ -942,7 +952,7 @@ function App() {
                         <div className="team-group">
                           <div className="team-header-row">
                             <h4 className="team-title title-b">TEAM BRAVO</h4>
-                            {roomData.players.find(p => p.id === socket.id)?.teamId !== 'B' && (
+                            {roomData.players.find(p => p.id === currentSocketId)?.teamId !== 'B' && (
                               <button 
                                 className="team-join-btn btn-b"
                                 onClick={() => socket.emit('switch-team', { teamId: 'B' })}
@@ -972,7 +982,7 @@ function App() {
                           <div key={p.id} className="player-row-expanded">
                             <div className="player-info-main">
                               <span className="player-dot" style={{ background: p.color }}></span>
-                              <span className="player-name">{p.name} {p.id === socket.id && '(You)'}</span>
+                              <span className="player-name">{p.name} {p.id === currentSocketId && '(You)'}</span>
                             </div>
                             {p.isHost && <div className="host-badge"><Crown size={12} /> HOST</div>}
                           </div>

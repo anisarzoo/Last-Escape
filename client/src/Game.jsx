@@ -1722,8 +1722,8 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
               </span>
             </p>
             <div className="overlay-buttons">
-              <button onClick={beginSpectating}>{isTeamMode ? 'SPECTATE TEAMMATE' : 'SPECTATE KILLER'}</button>
-              <button onClick={() => window.location.reload()}>RETURN TO MENU</button>
+              <button className="rematch-btn" onClick={() => socket.emit('request-rematch')}>REMATCH</button>
+              <button className="exit-mission-btn" onClick={() => window.location.reload()}>LEAVE MISSION</button>
             </div>
           </div>
         </div>
@@ -1798,11 +1798,11 @@ const Game = ({ roomData, settings, onOpenSettings }) => {
 
             <div className="overlay-buttons">
               {roomData?.hostId === socket.id ? (
-                <button onClick={() => socket.emit('rematch')}>REMATCH</button>
+                <button className="rematch-btn" onClick={() => socket.emit('rematch')}>REMATCH</button>
               ) : (
-                <button disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>WAITING FOR HOST...</button>
+                <button disabled className="rematch-btn" style={{ opacity: 0.6, cursor: 'not-allowed' }}>WAITING FOR HOST...</button>
               )}
-              <button onClick={() => window.location.reload()} className="secondary-btn">LEAVE MISSION</button>
+              <button className="exit-mission-btn" onClick={() => window.location.reload()}>LEAVE MISSION</button>
             </div>
           </div>
         </div>

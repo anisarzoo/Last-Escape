@@ -492,8 +492,9 @@ io.on('connection', (socket) => {
             if (!player.dashHitPlayers) player.dashHitPlayers = [];
             player.dashHitPlayers.push(pId);
             const dmg = 25;
+            const actualDamage = Math.max(0, Math.min(dmg, target.hp));
             target.hp -= dmg;
-            player.damageDealt += dmg;
+            player.damageDealt += actualDamage;
             if (target.hp <= 0) {
               applyElimination(room, target, socket.id);
             }
@@ -880,9 +881,10 @@ function updateRoom(roomId) {
       const dist = Math.sqrt((b.x - p.x)**2 + (b.y - p.y)**2);
       if (dist < 20) {
         const damage = p.isCarryingKey ? 18 : 20;
+        const actualDamage = Math.max(0, Math.min(damage, p.hp));
         p.hp -= damage;
         const shooter = players[b.ownerId];
-        if (shooter) shooter.damageDealt += damage;
+        if (shooter) shooter.damageDealt += actualDamage;
         
         // Apply Knockback (Pure Velocity)
         const kbForce = 10;
